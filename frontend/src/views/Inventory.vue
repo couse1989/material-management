@@ -25,8 +25,8 @@
           <template #default="scope">
             <el-image
               v-if="scope.row.image"
-              :src="scope.row.image"
-              :preview-src-list="[scope.row.image]"
+              :src="getImageUrl(scope.row.image)"
+              :preview-src-list="[getImageUrl(scope.row.image)]"
               style="width: 50px; height: 50px;"
               fit="cover"
             />
@@ -38,6 +38,16 @@
         <el-table-column prop="production_date" label="生产日期" />
         <el-table-column prop="storage_area" label="存放区域" />
         <el-table-column prop="quantity" label="数量" width="100" />
+        <!-- 动态字段列 -->
+        <el-table-column
+          v-for="field in customFields"
+          :key="field.id"
+          :label="field.field_name"
+        >
+          <template #default="scope">
+            {{ getCustomFieldValue(scope.row, field.field_name) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200">
           <template #default="scope">
             <el-button size="small" @click="editMaterial(scope.row)">编辑</el-button>
@@ -48,7 +58,7 @@
     </el-card>
 
     <!-- 添加/编辑对话框 -->
-    <el-dialog v-model="showAddDialog" :title="isEditing ? '编辑物资' : '添加物资'" width="500px">
+    <el-dialog v-model="showAddDialog" :title="isEditing ? '编辑物资' : '添加物资'" width="600px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="物资名称">
           <el-input v-model="form.name" />
@@ -82,12 +92,37 @@
           </el-upload>
           <div v-if="form.image" style="margin-top: 10px;">
             <el-image
-              :src="form.image"
+              :src="getImageUrl(form.image)"
               style="width: 100px; height: 100px;"
               fit="cover"
             />
             <el-button type="text" @click="form.image = ''" style="color: #f56c6c;">删除图片</el-button>
           </div>
+        </el-form-item>
+        
+        <!-- 动态字段 -->
+        <el-form-item
+          v-for="field in customFields"
+          :key="field.id"
+          :label="field.field_name"
+        >
+          <el-input
+            v-if="field.field_type === 'text'"
+            v-model="form.custom_fields[field.field_name]"
+          />
+          <el-input-number
+            v-else-if="field.field_type === 'number'"
+            v-model="form.custom_fields[field.field_name]"
+          />
+          <el-date-picker
+            v-else-if="field.field_type === 'date'"
+            v-model="form.custom_fields[field.field_name]"
+            type="date"
+          />
+          <el-input
+            v-else
+            v-model="form.custom_fields[field.field_name]"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -107,6 +142,7 @@ export default {
   data() {
     return {
       materials: [],
+      customFields: [],
       showAddDialog: false,
       isEditing: false,
       form: {
@@ -116,55 +152,119 @@ export default {
         production_date: '',
         storage_area: '',
         quantity: 0,
-        image: ''
+        image: '',
+        custom_fields: {}
       }
     }
   },
   mounted() {
+    this.loadCustomFields()
     this.loadMaterials()
   },
   methods: {
+    async loadCustomFields() {
+      try {
+        const res = await axios.get('/api/fields')
+        this.customFields = res.data
+      } catch (error) {
+        console.error('加载字段定义失败', error)
+      }
+    },
     async loadMaterials() {
-      const res = await axios.get('/api/materials')
-      this.materials = res.data
+      try {
+        const res = await axios.get('/api/materials')
+        this.materials = res.data
+      } catch (error) {
+        this.$message.error('加载物资失败')
+      }
+    },
+    getImageUrl(imagePath) {
+      if (!imagePath) return ''
+      // 如果已经是完整URL，直接返回
+      if (imagePath.startsWith('http')) return imagePath
+      // 否则拼接后端地址
+      return `http://${window.location.hostname}:5000${imagePath}`
+    },
+    getCustomFieldValue(row, fieldName) {
+      if (row.custom_fields && typeof row.custom_fields === 'object') {
+        return row.custom_fields[fieldName] || '-'
+      }
+      return '-'
     },
     editMaterial(material) {
       this.isEditing = true
-      this.form = { ...material }
+      this.form = { 
+        ...material,
+        custom_fields: material.custom_fields || {}
+      }
       this.showAddDialog = true
     },
     async saveMaterial() {
-      if (this.isEditing) {
-        await axios.put(`/api/materials/${this.form.id}`, this.form)
-      } else {
-        await axios.post('/api/materials', this.form)
+      try {
+        if (this.isEditing) {
+          await axios.put(`/api/materials/${this.form.id}`, this.form)
+        } else {
+          await axios.post('/api/materials', this.form)
+        }
+        this.showAddDialog = false
+        this.resetForm()
+        this.loadMaterials()
+        this.$message.success('保存成功')
+      } catch (error) {
+        this.$message.error('保存失败')
       }
-      this.showAddDialog = false
-      this.resetForm()
-      this.loadMaterials()
     },
     async deleteMaterial(id) {
-      await axios.delete(`/api/materials/${id}`)
-      this.loadMaterials()
+      try {
+        await this.$confirm('确定要删除这个物资吗？', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        
+        await axios.delete(`/api/materials/${id}`)
+        this.$message.success('删除成功')
+        this.loadMaterials()
+      } catch (error) {
+        // 用户取消删除
+      }
     },
     resetForm() {
       this.isEditing = false
-      this.form = { id: null, name: '', model: '', production_date: '', storage_area: '', quantity: 0, image: '' }
+      this.form = { 
+        id: null, 
+        name: '', 
+        model: '', 
+        production_date: '', 
+        storage_area: '', 
+        quantity: 0, 
+        image: '',
+        custom_fields: {} 
+      }
     },
     async exportExcel() {
-      const res = await axios.get('/api/export/excel', { responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `物资导出_${new Date().getTime()}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
+      try {
+        const res = await axios.get('/api/export/excel', { responseType: 'blob' })
+        const url = window.URL.createObjectURL(new Blob([res.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `物资导出_${new Date().getTime()}.xlsx`)
+        document.body.appendChild(link)
+        link.click()
+      } catch (error) {
+        this.$message.error('导出失败')
+      }
     },
     async importExcel(options) {
       const formData = new FormData()
       formData.append('file', options.file)
-      await axios.post('/api/import/excel', formData)
-      this.loadMaterials()
+      try {
+        await axios.post('/api/import/excel', formData)
+        this.$message.success('导入成功')
+        this.loadMaterials()
+      } catch (error) {
+        this.$message.error('导入失败')
+      }
     },
     async uploadImage(options) {
       const formData = new FormData()
