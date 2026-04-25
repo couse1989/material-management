@@ -5,11 +5,53 @@ import pandas as pd
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from PIL import Image
+import io
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+app.config['UPLOAD_FOLDER'] = 'uploads/images'
+app.config['MAX_IMAGE_SIZE'] = 1024 * 1024  # 1MB
+
+# 确保上传目录存在
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 图片压缩函数
+def compress_image(image_file, max_size=1024*1024):
+    """压缩图片到指定大小以内"""
+    img = Image.open(image_file)
+    
+    # 转换为RGB模式（处理RGBA等格式）
+    if img.mode in ('RGBA', 'LA', 'P'):
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+        img = background
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+    
+    # 压缩质量从80开始，逐步降低直到文件大小满足要求
+    quality = 85
+    while quality > 20:
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
+        size = img_byte_arr.tell()
+        
+        if size <= max_size:
+            img_byte_arr.seek(0)
+            return img_byte_arr
+        
+        quality -= 10
+    
+    # 如果质量降到最低还不满足，则调整尺寸
+    while img.size[0] > 800:
+        img = img.resize((int(img.size[0]*0.8), int(img.size[1]*0.8)), Image.Resampling.LANCZOS)
+    
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='JPEG', quality=20, optimize=True)
+    img_byte_arr.seek(0)
+    return img_byte_arr
 
 # 数据库初始化
 def init_db():
@@ -24,6 +66,7 @@ def init_db():
                   production_date TEXT,
                   storage_area TEXT,
                   quantity INTEGER DEFAULT 0,
+                  image TEXT,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     # 操作日志表
@@ -68,8 +111,8 @@ def add_material():
     data = request.json
     conn = get_db()
     conn.execute(
-        'INSERT INTO materials (name, model, production_date, storage_area, quantity) VALUES (?, ?, ?, ?, ?)',
-        (data['name'], data['model'], data['production_date'], data['storage_area'], data.get('quantity', 0))
+        'INSERT INTO materials (name, model, production_date, storage_area, quantity, image) VALUES (?, ?, ?, ?, ?, ?)',
+        (data['name'], data['model'], data['production_date'], data['storage_area'], data.get('quantity', 0), data.get('image', ''))
     )
     conn.commit()
     conn.close()
@@ -195,6 +238,60 @@ def restore_database():
     file.save('materials.db')
     
     return jsonify({'message': '还原成功'})
+
+# 图片上传接口
+@app.route('/api/upload/image', methods=['POST'])
+def upload_image():
+    if 'file' not in request.files:
+        return jsonify({'error': '没有上传文件'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': '未选择文件'}), 400
+    
+    # 压缩图片
+    compressed_img = compress_image(file)
+    
+    # 生成文件名
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}_{file.filename.rsplit('.', 1)[0]}.jpg"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    
+    # 保存压缩后的图片
+    with open(filepath, 'wb') as f:
+        f.write(compressed_img.read())
+    
+    # 返回图片URL
+    image_url = f"/uploads/images/{filename}"
+    return jsonify({'message': '上传成功', 'image_url': image_url})
+
+# 静态文件服务
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_file(os.path.join('uploads', filename))
+
+# 更新物资接口（支持图片）
+@app.route('/api/materials/<int:material_id>', methods=['PUT'])
+def update_material(material_id):
+    data = request.json
+    conn = get_db()
+    
+    # 构建更新SQL
+    fields = []
+    values = []
+    for key in ['name', 'model', 'production_date', 'storage_area', 'quantity', 'image']:
+        if key in data:
+            fields.append(f"{key} = ?")
+            values.append(data[key])
+    
+    if fields:
+        values.append(material_id)
+        sql = f"UPDATE materials SET {', '.join(fields)} WHERE id = ?"
+        conn.execute(sql, values)
+        conn.commit()
+    
+    conn.close()
+    return jsonify({'message': '更新成功'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

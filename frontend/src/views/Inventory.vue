@@ -21,6 +21,18 @@
       
       <el-table :data="materials" style="width: 100%" stripe>
         <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column label="图片" width="100">
+          <template #default="scope">
+            <el-image
+              v-if="scope.row.image"
+              :src="scope.row.image"
+              :preview-src-list="[scope.row.image]"
+              style="width: 50px; height: 50px;"
+              fit="cover"
+            />
+            <span v-else>无图片</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="物资名称" />
         <el-table-column prop="model" label="型号" />
         <el-table-column prop="production_date" label="生产日期" />
@@ -53,6 +65,30 @@
         <el-form-item label="数量">
           <el-input-number v-model="form.quantity" :min="0" />
         </el-form-item>
+        <el-form-item label="物资图片">
+          <el-upload
+            class="upload-demo"
+            :auto-upload="true"
+            :show-file-list="false"
+            :http-request="uploadImage"
+            accept="image/*"
+          >
+            <el-button type="primary">点击上传</el-button>
+            <template #tip>
+              <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+                图片将自动压缩到1MB以内
+              </div>
+            </template>
+          </el-upload>
+          <div v-if="form.image" style="margin-top: 10px;">
+            <el-image
+              :src="form.image"
+              style="width: 100px; height: 100px;"
+              fit="cover"
+            />
+            <el-button type="text" @click="form.image = ''" style="color: #f56c6c;">删除图片</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
@@ -79,7 +115,8 @@ export default {
         model: '',
         production_date: '',
         storage_area: '',
-        quantity: 0
+        quantity: 0,
+        image: ''
       }
     }
   },
@@ -112,7 +149,7 @@ export default {
     },
     resetForm() {
       this.isEditing = false
-      this.form = { id: null, name: '', model: '', production_date: '', storage_area: '', quantity: 0 }
+      this.form = { id: null, name: '', model: '', production_date: '', storage_area: '', quantity: 0, image: '' }
     },
     async exportExcel() {
       const res = await axios.get('/api/export/excel', { responseType: 'blob' })
@@ -128,6 +165,18 @@ export default {
       formData.append('file', options.file)
       await axios.post('/api/import/excel', formData)
       this.loadMaterials()
+    },
+    async uploadImage(options) {
+      const formData = new FormData()
+      formData.append('file', options.file)
+      
+      try {
+        const res = await axios.post('/api/upload/image', formData)
+        this.form.image = res.data.image_url
+        this.$message.success('图片上传成功')
+      } catch (error) {
+        this.$message.error('图片上传失败')
+      }
     }
   }
 }
