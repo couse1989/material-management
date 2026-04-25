@@ -41,7 +41,7 @@ export default {
   },
   methods: {
     async handleLogout() {
-      await this.$axios.post('/api/logout')
+      await axios.post('/api/logout')
       localStorage.removeItem('user')
       this.$router.push('/login')
     }

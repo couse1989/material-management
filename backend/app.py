@@ -48,7 +48,8 @@ def compress_image(image_file, max_size=1024*1024):
         quality -= 10
     
     while img.size[0] > 800:
-        img = img.resize((int(img.size[0]*0.8), int(img.size[1]*0.8)), Image.Resampling.LANCZOS)
+        new_size = (int(img.size[0]*0.8), int(img.size[1]*0.8))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
     
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='JPEG', quality=20, optimize=True)
