@@ -524,13 +524,24 @@ def inbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量（使用中文"数量"匹配前端字段名）
+    # 获取当前数量（按区域分开存储）
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('数量', 0))
-
-    # 更新数量
-    new_quantity = current_quantity + quantity
-    custom_fields['数量'] = new_quantity
+    
+    # 兼容旧数据：如果'数量'是数字，转换为按区域存储的格式
+    if not isinstance(custom_fields.get('数量'), dict):
+        old_quantity = int(custom_fields.get('数量', 0))
+        # 获取原来的存放区域，如果没有则使用"A区"
+        default_area = custom_fields.get('存放区域', 'A区')
+        custom_fields['数量'] = {default_area: old_quantity}
+    
+    # 获取当前区域的数量
+    current_region_quantity = custom_fields['数量'].get(storage_area, 0)
+    
+    # 更新区域数量
+    custom_fields['数量'][storage_area] = current_region_quantity + quantity
+    
+    # 计算总数量
+    custom_fields['总数量'] = sum(custom_fields['数量'].values())
 
     # 更新存放区域
     if storage_area:
@@ -555,7 +566,7 @@ def inbound_material(material_id):
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '入库成功', 'new_quantity': new_quantity})
+    return jsonify({'message': '入库成功', 'new_quantity': custom_fields['总数量']})
 
 @app.route('/api/materials/<int:material_id>/outbound', methods=['POST'])
 @login_required
@@ -572,16 +583,27 @@ def outbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量（使用中文"数量"匹配前端字段名）
+    # 获取当前数量（按区域分开存储）
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('数量', 0))
     
-    if current_quantity < quantity:
-        return jsonify({'error': '库存不足'}), 400
+    # 兼容旧数据：如果'数量'是数字，转换为按区域存储的格式
+    if not isinstance(custom_fields.get('数量'), dict):
+        old_quantity = int(custom_fields.get('数量', 0))
+        # 获取原来的存放区域，如果没有则使用"A区"
+        default_area = custom_fields.get('存放区域', 'A区')
+        custom_fields['数量'] = {default_area: old_quantity}
     
-    # 更新数量
-    new_quantity = current_quantity - quantity
-    custom_fields['数量'] = new_quantity
+    # 获取当前区域的数量
+    current_region_quantity = custom_fields['数量'].get(storage_area, 0)
+    
+    if current_region_quantity < quantity:
+        return jsonify({'error': f'{storage_area}库存不足'}), 400
+    
+    # 更新区域数量
+    custom_fields['数量'][storage_area] = current_region_quantity - quantity
+    
+    # 计算总数量
+    custom_fields['总数量'] = sum(custom_fields['数量'].values())
     
     # 更新存放区域
     if storage_area:
@@ -606,7 +628,7 @@ def outbound_material(material_id):
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '出库成功', 'new_quantity': new_quantity})
+    return jsonify({'message': '出库成功', 'new_quantity': custom_fields['总数量']})
 
 # 日志
 @app.route('/api/logs/operations', methods=['GET'])

@@ -106,10 +106,16 @@ export default {
       return `物资 #${item.id}`
     },
     getMaterialQuantity(item) {
-      if (item.custom_fields && item.custom_fields['数量']) {
-        return item.custom_fields['数量']
+      if (!item.custom_fields) return '0'
+      const quantity = item.custom_fields['数量']
+      // 兼容新旧数据：如果quantity是对象（按区域存储），则显示所有区域的数量
+      if (typeof quantity === 'object' && quantity !== null) {
+        const regionStrs = Object.entries(quantity).map(([region, qty]) => `${region}: ${qty}`)
+        const total = item.custom_fields['总数量'] || Object.values(quantity).reduce((a, b) => a + b, 0)
+        return `${regionStrs.join(', ')} (总: ${total})`
       }
-      return 0
+      // 旧数据：quantity是数字
+      return quantity || 0
     },
     async submitInbound() {
       if (!this.form.material_id || !this.form.quantity) {
