@@ -22,10 +22,6 @@
       <div v-if="errorMsg" style="color: #f56c6c; text-align: center; margin-top: 10px;">
         {{ errorMsg }}
       </div>
-      
-      <div style="margin-top: 20px; padding: 10px; background: #f0f9ff; border-radius: 4px;">
-        <small>默认账号：admin / admin123</small>
-      </div>
     </el-card>
   </div>
 </template>
