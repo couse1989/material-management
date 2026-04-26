@@ -27,17 +27,27 @@ echo ""
 
 # 1. 安装依赖
 echo "步骤 1/8: 检查并安装依赖..."
+
+# 安装 Python3 和 venv 模块
 if ! command -v python3 &> /dev/null; then
     echo "   安装 Python3..."
     apt update && apt install -y python3 python3-venv python3-pip
+else
+    # 检查 python3-venv 是否安装
+    if ! python3 -m venv -h &> /dev/null; then
+        echo "   安装 python3-venv..."
+        apt update && apt install -y python3-venv
+    fi
 fi
 
+# 安装 Node.js
 if ! command -v node &> /dev/null; then
     echo "   安装 Node.js..."
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
     apt install -y nodejs
 fi
 
+# 安装 Nginx
 if ! command -v nginx &> /dev/null; then
     echo "   安装 Nginx..."
     apt update && apt install -y nginx
@@ -52,13 +62,27 @@ mkdir -p "$PROJECT_DIR/backups"
 
 # 3. 复制后端文件
 echo "步骤 3/8: 安装后端..."
-cp -r "$CURRENT_DIR/backend/"* "$PROJECT_DIR/backend/" 2>/dev/null || true
+
+# 复制后端文件（排除 venv 和 __pycache__）
+rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' "$CURRENT_DIR/backend/" "$PROJECT_DIR/backend/"
 
 # 创建 Python 虚拟环境
 cd "$PROJECT_DIR/backend"
 if [ ! -d "venv" ]; then
-    python3 -m venv venv
+    echo "   创建 Python 虚拟环境..."
+    python3 -m venv venv || {
+        echo "❌ 虚拟环境创建失败，请检查 python3-venv 是否安装"
+        echo "   尝试安装: sudo apt install python3-venv"
+        exit 1
+    }
 fi
+
+# 检查虚拟环境是否创建成功
+if [ ! -f "venv/bin/activate" ]; then
+    echo "❌ 虚拟环境创建失败: venv/bin/activate 不存在"
+    exit 1
+fi
+
 source venv/bin/activate
 pip install -r requirements.txt
 
