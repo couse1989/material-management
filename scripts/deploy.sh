@@ -3,7 +3,7 @@
 # 物资管理系统 - Linux 生产环境部署脚本
 # 使用 systemd + nginx 管理服务
 
-set -e
+# 不启用 set -e，允许命令失败并自动安装缺失的依赖
 
 echo "=========================================="
 echo "   物资管理系统 - Linux 部署脚本"
@@ -25,32 +25,68 @@ echo "📁 项目目录: $PROJECT_DIR"
 echo "📁 当前目录: $CURRENT_DIR"
 echo ""
 
-# 1. 安装依赖
+# 更新包列表标志（避免重复更新）
+APT_UPDATED=false
+
+update_apt() {
+    if [ "$APT_UPDATED" = false ]; then
+        echo "   更新包列表..."
+        apt update -y
+        APT_UPDATED=true
+    fi
+}
+
+# 1. 检查并安装所有依赖
 echo "步骤 1/8: 检查并安装依赖..."
 
-# 安装 Python3 和 venv 模块
+# 安装 Python3
 if ! command -v python3 &> /dev/null; then
-    echo "   安装 Python3..."
-    apt update && apt install -y python3 python3-venv python3-pip
+    echo "   ⚙️  安装 Python3..."
+    update_apt
+    apt install -y python3 python3-venv python3-pip
 else
-    # 检查 python3-venv 是否安装
-    if ! python3 -m venv -h &> /dev/null; then
-        echo "   安装 python3-venv..."
-        apt update && apt install -y python3-venv
+    # 检查 python3-venv 是否可用
+    if ! python3 -c "import venv" 2>/dev/null; then
+        echo "   ⚙️  安装 python3-venv..."
+        update_apt
+        apt install -y python3-venv
     fi
 fi
 
-# 安装 Node.js
+# 安装 rsync（如果需要）
+if ! command -v rsync &> /dev/null; then
+    echo "   ⚙️  安装 rsync..."
+    update_apt
+    apt install -y rsync
+fi
+
+# 安装 Node.js 和 npm
 if ! command -v node &> /dev/null; then
-    echo "   安装 Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+    echo "   ⚙️  安装 Node.js..."
+    # 检查是否已经添加了 nodesource 源
+    if [ ! -f /etc/apt/sources.list.d/nodesource.list ]; then
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+    fi
     apt install -y nodejs
+fi
+
+if ! command -v npm &> /dev/null; then
+    echo "   ⚙️  安装 npm..."
+    apt install -y npm
 fi
 
 # 安装 Nginx
 if ! command -v nginx &> /dev/null; then
-    echo "   安装 Nginx..."
-    apt update && apt install -y nginx
+    echo "   ⚙️  安装 Nginx..."
+    update_apt
+    apt install -y nginx
+fi
+
+# 安装 curl（可能需要）
+if ! command -v curl &> /dev/null; then
+    echo "   ⚙️  安装 curl..."
+    update_apt
+    apt install -y curl
 fi
 
 # 2. 创建项目目录
@@ -60,52 +96,72 @@ mkdir -p "$PROJECT_DIR/frontend/dist"
 mkdir -p "$PROJECT_DIR/static/uploads/images"
 mkdir -p "$PROJECT_DIR/backups"
 
-# 3. 复制后端文件
+# 3. 复制后端文件并创建虚拟环境
 echo "步骤 3/8: 安装后端..."
 
 # 复制后端文件（排除 venv 和 __pycache__）
-rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' "$CURRENT_DIR/backend/" "$PROJECT_DIR/backend/"
+if command -v rsync &> /dev/null; then
+    rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' "$CURRENT_DIR/backend/" "$PROJECT_DIR/backend/"
+else
+    # 如果没有 rsync，使用 cp
+    cp -r "$CURRENT_DIR/backend/"* "$PROJECT_DIR/backend/" 2>/dev/null || true
+fi
 
 # 创建 Python 虚拟环境
 cd "$PROJECT_DIR/backend"
 if [ ! -d "venv" ]; then
-    echo "   创建 Python 虚拟环境..."
+    echo "   ⚙️  创建 Python 虚拟环境..."
     
-    # 尝试创建虚拟环境
-    python3 -m venv venv 2>/dev/null || python3 -m venv venv --without-pip 2>/dev/null || {
-        echo "❌ 虚拟环境创建失败"
-        echo "   请尝试手动执行以下命令："
-        echo "   cd $PROJECT_DIR/backend"
-        echo "   python3 -m venv venv"
-        exit 1
-    }
+    # 尝试多种方式创建虚拟环境
+    if python3 -m venv venv 2>/dev/null; then
+        echo "   ✅ 虚拟环境创建成功（带 pip）"
+    elif python3 -m venv venv --without-pip 2>/dev/null; then
+        echo "   ✅ 虚拟环境创建成功（不带 pip，稍后安装）"
+    else
+        echo "   ⚠️  虚拟环境创建失败，尝试安装 python3-venv..."
+        update_apt
+        apt install -y python3-venv
+        python3 -m venv venv --without-pip
+    fi
 fi
 
 # 检查虚拟环境是否创建成功
 if [ ! -f "venv/bin/activate" ]; then
-    echo "❌ 虚拟环境创建失败: venv/bin/activate 不存在"
-    echo "   尝试手动创建："
-    echo "   cd $PROJECT_DIR/backend"
-    echo "   python3 -m venv venv --without-pip"
-    exit 1
+    echo "   ⚠️  虚拟环境不完整，重新创建..."
+    rm -rf venv
+    python3 -m venv venv --without-pip
 fi
 
 # 激活虚拟环境
 source venv/bin/activate
 
-# 检查 pip 是否可用，如果不可用则安装
+# 检查并安装 pip
 if ! command -v pip &> /dev/null; then
-    echo "   pip 未安装，正在安装..."
+    echo "   ⚙️  安装 pip..."
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+    # 刷新环境变量
+    source venv/bin/activate
 fi
 
+# 安装 Python 依赖
+echo "   ⚙️  安装 Python 依赖..."
 pip install -r requirements.txt
 
 # 4. 构建前端
 echo "步骤 4/8: 构建前端..."
 cd "$CURRENT_DIR/frontend"
-npm install
+
+# 安装 npm 依赖
+if [ ! -d "node_modules" ]; then
+    echo "   ⚙️  安装 npm 依赖..."
+    npm install
+fi
+
+# 构建前端
+echo "   ⚙️  构建前端..."
 npm run build
+
+# 复制构建文件
 cp -r dist/* "$PROJECT_DIR/frontend/dist/"
 
 # 5. 复制静态文件
@@ -117,6 +173,7 @@ fi
 # 6. 创建 www-data 用户（如果不存在）
 echo "步骤 6/8: 配置用户权限..."
 if ! id "www-data" &>/dev/null; then
+    echo "   ⚙️  创建 www-data 用户..."
     useradd -r -s /bin/false www-data
 fi
 
