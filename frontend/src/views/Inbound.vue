@@ -108,17 +108,11 @@ export default {
     getMaterialQuantity(item) {
       if (!item.custom_fields) return '0'
       const quantity = item.custom_fields['数量']
-      // 兼容新旧数据：如果quantity是对象（按区域存储），则显示所有区域的数量
-      if (typeof quantity === 'object' && quantity !== null) {
-        const regionStrs = Object.entries(quantity).map(([region, qty]) => {
-          // 将"未指定区域"显示为"无区域"
-          const displayRegion = region === '未指定区域' ? '无区域' : region
-          return `${displayRegion}: ${qty}`
-        })
-        return regionStrs.join(', ')
+      // 直接返回数量（现在是数字）
+      if (quantity !== null && quantity !== undefined) {
+        return quantity
       }
-      // 旧数据：quantity是数字
-      return quantity || 0
+      return '0'
     },
     async submitInbound() {
       if (!this.form.material_id || !this.form.quantity) {

@@ -524,36 +524,57 @@ def inbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量（按区域分开存储）
+    # 获取当前物资的自定义字段
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    
-    # 兼容旧数据：如果'数量'是数字，转换为按区域存储的格式
-    if not isinstance(custom_fields.get('数量'), dict):
-        old_quantity = int(custom_fields.get('数量', 0))
-        # 获取原来的存放区域，如果没有则使用"A区"
-        default_area = custom_fields.get('存放区域', 'A区')
-        custom_fields['数量'] = {default_area: old_quantity}
-    
-    # 获取当前区域的数量
-    current_region_quantity = custom_fields['数量'].get(storage_area, 0)
-    
-    # 更新区域数量
-    custom_fields['数量'][storage_area] = current_region_quantity + quantity
-    
-    # 删除总数字段（如果存在）
-    if '总数量' in custom_fields:
-        del custom_fields['总数量']
-
-    # 更新存放区域
-    if storage_area:
-        custom_fields['存放区域'] = storage_area
-
-    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
-                (json.dumps(custom_fields), material_id))
-
-    # 获取物资名称用于日志
     material_name = custom_fields.get('物资名称', f'物资#{material_id}')
-
+    
+    # 查找是否有相同物资名称和相同存放区域的记录
+    all_materials = conn.execute('SELECT * FROM materials').fetchall()
+    
+    target_material = None
+    for m in all_materials:
+        m_fields = json.loads(m['custom_fields']) if m['custom_fields'] else {}
+        if (m_fields.get('物资名称') == material_name and 
+            m_fields.get('存放区域', '') == (storage_area or '')):
+            target_material = m
+            break
+    
+    if target_material:
+        # 找到相同区域记录，更新数量
+        target_fields = json.loads(target_material['custom_fields'])
+        
+        # 兼容旧数据：如果'数量'是对象，转换为数字
+        if isinstance(target_fields.get('数量'), dict):
+            # 旧数据格式，取第一个区域的数量
+            old_qty = list(target_fields['数量'].values())[0] if target_fields['数量'] else 0
+            target_fields['数量'] = int(old_qty)
+        
+        # 更新数量
+        current_qty = int(target_fields.get('数量', 0))
+        target_fields['数量'] = current_qty + quantity
+        
+        # 更新存放区域
+        if storage_area:
+            target_fields['存放区域'] = storage_area
+        
+        conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
+                    (json.dumps(target_fields), target_material['id']))
+        new_material_id = target_material['id']
+    else:
+        # 没有相同区域记录，创建新记录
+        new_fields = custom_fields.copy()
+        new_fields['数量'] = quantity
+        if storage_area:
+            new_fields['存放区域'] = storage_area
+        else:
+            # 如果storage_area为空，删除该字段或设为空字符串
+            if '存放区域' in new_fields:
+                new_fields['存放区域'] = ''
+        
+        result = conn.execute('INSERT INTO materials (image, custom_fields) VALUES (?, ?)',
+                    (material['image'], json.dumps(new_fields)))
+        new_material_id = result.lastrowid
+    
     # 备注中附加存放区域信息
     log_remark = remark
     if storage_area:
@@ -562,12 +583,12 @@ def inbound_material(material_id):
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
-        ('入库', material_id, material_name, quantity, operator, log_remark)
+        ('入库', new_material_id, material_name, quantity, operator, log_remark)
     )
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '入库成功', 'quantity': custom_fields['数量']})
+    return jsonify({'message': '入库成功'})
 
 @app.route('/api/materials/<int:material_id>/outbound', methods=['POST'])
 @login_required
@@ -584,38 +605,50 @@ def outbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量（按区域分开存储）
+    # 获取当前物资的自定义字段
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    
-    # 兼容旧数据：如果'数量'是数字，转换为按区域存储的格式
-    if not isinstance(custom_fields.get('数量'), dict):
-        old_quantity = int(custom_fields.get('数量', 0))
-        # 获取原来的存放区域，如果没有则使用"A区"
-        default_area = custom_fields.get('存放区域', 'A区')
-        custom_fields['数量'] = {default_area: old_quantity}
-    
-    # 获取当前区域的数量
-    current_region_quantity = custom_fields['数量'].get(storage_area, 0)
-    
-    if current_region_quantity < quantity:
-        return jsonify({'error': f'{storage_area}库存不足'}), 400
-    
-    # 更新区域数量
-    custom_fields['数量'][storage_area] = current_region_quantity - quantity
-    
-    # 删除总数字段（如果存在）
-    if '总数量' in custom_fields:
-        del custom_fields['总数量']
-
-    # 更新存放区域
-    if storage_area:
-        custom_fields['存放区域'] = storage_area
-    
-    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
-                (json.dumps(custom_fields), material_id))
-    
-    # 获取物资名称用于日志
     material_name = custom_fields.get('物资名称', f'物资#{material_id}')
+    
+    # 查找是否有相同物资名称和相同存放区域的记录
+    all_materials = conn.execute('SELECT * FROM materials').fetchall()
+    
+    target_material = None
+    for m in all_materials:
+        m_fields = json.loads(m['custom_fields']) if m['custom_fields'] else {}
+        if (m_fields.get('物资名称') == material_name and 
+            m_fields.get('存放区域', '') == (storage_area or '')):
+            target_material = m
+            break
+    
+    if not target_material:
+        return jsonify({'error': f'找不到{storage_area or "无区域"}的该物资记录'}), 404
+    
+    # 获取目标记录的数量
+    target_fields = json.loads(target_material['custom_fields'])
+    
+    # 兼容旧数据：如果'数量'是对象，转换为数字
+    if isinstance(target_fields.get('数量'), dict):
+        old_qty = list(target_fields['数量'].values())[0] if target_fields['数量'] else 0
+        target_fields['数量'] = int(old_qty)
+    
+    current_qty = int(target_fields.get('数量', 0))
+    
+    if current_qty < quantity:
+        return jsonify({'error': f'{storage_area or "无区域"}库存不足'}), 400
+    
+    # 计算新数量
+    new_qty = current_qty - quantity
+    
+    if new_qty == 0:
+        # 数量为0，删除该记录
+        conn.execute('DELETE FROM materials WHERE id = ?', (target_material['id'],))
+        deleted_id = target_material['id']
+    else:
+        # 更新数量
+        target_fields['数量'] = new_qty
+        conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
+                    (json.dumps(target_fields), target_material['id']))
+        deleted_id = None
     
     # 备注中附加存放区域信息
     log_remark = remark
@@ -630,7 +663,7 @@ def outbound_material(material_id):
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '出库成功', 'quantity': custom_fields['数量']})
+    return jsonify({'message': '出库成功', 'deleted': deleted_id is not None})
 
 # 日志
 @app.route('/api/logs/operations', methods=['GET'])
@@ -726,22 +759,22 @@ def import_excel():
             if col_str == 'ID' or col_str == '图片':
                 continue
             
-            # 处理数量字段：如果是"数量"，转换为新的区域格式
+            # 处理数量字段：直接存储为数字
             if col_str == '数量':
                 qty_value = row[col]
                 if pd.notna(qty_value):
-                    # 转换为数字
                     try:
-                        qty_num = float(qty_value)
-                        # 存储为区域对象格式，默认放到"未指定区域"
-                        custom_fields[col_str] = {'未指定区域': qty_num}
+                        custom_fields[col_str] = float(qty_value)
                     except (ValueError, TypeError):
-                        # 如果转换失败，存为字符串
                         custom_fields[col_str] = str(qty_value)
                 else:
-                    custom_fields[col_str] = ''
+                    custom_fields[col_str] = 0
             else:
                 custom_fields[col_str] = str(row[col]) if pd.notna(row[col]) else ''
+        
+        # 确保存放区域字段存在（如果Excel中没有）
+        if '存放区域' not in custom_fields:
+            custom_fields['存放区域'] = ''
         
         image = ''
         if '图片' in df.columns and pd.notna(row['图片']):

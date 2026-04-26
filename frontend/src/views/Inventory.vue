@@ -435,16 +435,7 @@ export default {
       if (row.custom_fields && typeof row.custom_fields === 'object') {
         const value = row.custom_fields[fieldName]
         if (value === undefined || value === null) return '-'
-        // 如果是'数量'字段且值是对象（按区域存储），则格式化显示
-        if (fieldName === '数量' && typeof value === 'object' && !Array.isArray(value)) {
-          const regionStrs = Object.entries(value).map(([region, qty]) => {
-            // 将"未指定区域"显示为"无区域"
-            const displayRegion = region === '未指定区域' ? '无区域' : region
-            return `${displayRegion}: ${qty}`
-          })
-          return regionStrs.join(', ')
-        }
-        // 如果是其他对象类型，则转为JSON字符串
+        // 如果是对象类型，则转为JSON字符串
         if (typeof value === 'object') {
           return JSON.stringify(value)
         }
