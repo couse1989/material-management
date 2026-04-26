@@ -88,10 +88,11 @@ export default {
         if (areaField && areaField.field_options) {
           this.storageAreas = areaField.field_options.split(',').map(s => s.trim()).filter(s => s)
         } else {
-          this.storageAreas = ['A区', 'B区', 'C区', 'D区', 'E区']
+          this.storageAreas = []
+          this.$message.warning('请在字段管理中先定义"存放区域"字段并提供选项')
         }
       } catch (error) {
-        this.storageAreas = ['A区', 'B区', 'C区', 'D区', 'E区']
+        this.storageAreas = []
       }
     },
     setCurrentUser() {

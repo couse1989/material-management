@@ -480,29 +480,29 @@ def inbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量
+    # 获取当前数量（使用中文"数量"匹配前端字段名）
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('quantity', 0))
-    
+    current_quantity = int(custom_fields.get('数量', 0))
+
     # 更新数量
     new_quantity = current_quantity + quantity
-    custom_fields['quantity'] = new_quantity
-    
+    custom_fields['数量'] = new_quantity
+
     # 更新存放区域
     if storage_area:
         custom_fields['存放区域'] = storage_area
-    
+
     conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
                 (json.dumps(custom_fields), material_id))
-    
+
     # 获取物资名称用于日志
-    material_name = custom_fields.get('name', f'物资#{material_id}')
-    
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
+
     # 备注中附加存放区域信息
     log_remark = remark
     if storage_area:
         log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
-    
+
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
@@ -528,16 +528,16 @@ def outbound_material(material_id):
     if not material:
         return jsonify({'error': '物资不存在'}), 404
     
-    # 获取当前数量
+    # 获取当前数量（使用中文"数量"匹配前端字段名）
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('quantity', 0))
+    current_quantity = int(custom_fields.get('数量', 0))
     
     if current_quantity < quantity:
         return jsonify({'error': '库存不足'}), 400
     
     # 更新数量
     new_quantity = current_quantity - quantity
-    custom_fields['quantity'] = new_quantity
+    custom_fields['数量'] = new_quantity
     
     # 更新存放区域
     if storage_area:
@@ -547,7 +547,7 @@ def outbound_material(material_id):
                 (json.dumps(custom_fields), material_id))
     
     # 获取物资名称用于日志
-    material_name = custom_fields.get('name', f'物资#{material_id}')
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
     
     # 备注中附加存放区域信息
     log_remark = remark
@@ -601,13 +601,10 @@ def export_excel():
         # 解析自定义字段
         custom = json.loads(m['custom_fields']) if m['custom_fields'] else {}
         
-        # 按照字段定义顺序导出
+        # 按照字段定义顺序导出（不包含图片列）
         for field in fields:
             field_name = field['field_name']
             m_dict[field_name] = custom.get(field_name, '')
-        
-        # 添加图片路径（不在Excel中显示图片，只显示路径）
-        m_dict['图片'] = m['image'] if m['image'] else ''
         
         data.append(m_dict)
     

@@ -17,10 +17,12 @@
           <el-menu-item v-if="isAdmin" index="/logs">操作日志</el-menu-item>
           <el-menu-item v-if="isAdmin" index="/backup">备份还原</el-menu-item>
           <el-menu-item v-if="isAdmin" index="/users">用户管理</el-menu-item>
+          <el-menu-item style="float: right;" @click="handleLogout" :index="'logout'">
+            <el-icon style="margin-right: 4px;"><SwitchButton /></el-icon>注销
+          </el-menu-item>
           <el-submenu style="float: right;" index="user-menu">
             <template #title>{{ currentUser }}</template>
             <el-menu-item @click="showChangePasswordDialog = true">修改密码</el-menu-item>
-            <el-menu-item @click="handleLogout">退出登录</el-menu-item>
           </el-submenu>
         </el-menu>
       </el-header>
@@ -51,9 +53,11 @@
 
 <script>
 import axios from 'axios'
+import { SwitchButton } from '@element-plus/icons-vue'
 
 export default {
   name: 'App',
+  components: { SwitchButton },
   data() {
     return {
       showChangePasswordDialog: false,
