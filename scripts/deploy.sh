@@ -70,9 +70,13 @@ rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' "$CURRENT_D
 cd "$PROJECT_DIR/backend"
 if [ ! -d "venv" ]; then
     echo "   创建 Python 虚拟环境..."
-    python3 -m venv venv || {
-        echo "❌ 虚拟环境创建失败，请检查 python3-venv 是否安装"
-        echo "   尝试安装: sudo apt install python3-venv"
+    
+    # 尝试创建虚拟环境
+    python3 -m venv venv 2>/dev/null || python3 -m venv venv --without-pip 2>/dev/null || {
+        echo "❌ 虚拟环境创建失败"
+        echo "   请尝试手动执行以下命令："
+        echo "   cd $PROJECT_DIR/backend"
+        echo "   python3 -m venv venv"
         exit 1
     }
 fi
@@ -80,10 +84,21 @@ fi
 # 检查虚拟环境是否创建成功
 if [ ! -f "venv/bin/activate" ]; then
     echo "❌ 虚拟环境创建失败: venv/bin/activate 不存在"
+    echo "   尝试手动创建："
+    echo "   cd $PROJECT_DIR/backend"
+    echo "   python3 -m venv venv --without-pip"
     exit 1
 fi
 
+# 激活虚拟环境
 source venv/bin/activate
+
+# 检查 pip 是否可用，如果不可用则安装
+if ! command -v pip &> /dev/null; then
+    echo "   pip 未安装，正在安装..."
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+fi
+
 pip install -r requirements.txt
 
 # 4. 构建前端
