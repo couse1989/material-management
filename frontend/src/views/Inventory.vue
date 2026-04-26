@@ -43,7 +43,7 @@
 
       <el-table
         ref="inventoryTable"
-        :data="sortedMaterials"
+        :data="displayedMaterials"
         style="width: 100%"
         stripe
         @selection-change="handleSelectionChange"
@@ -93,6 +93,19 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <!-- 分页组件 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 25, 50, 100]"
+          :total="totalMaterials"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </el-card>
 
     <!-- 列设置对话框 -->
@@ -231,6 +244,9 @@ export default {
       // 排序相关
       sortField: '',
       sortOrder: '',
+      // 分页相关
+      currentPage: 1,
+      pageSize: 25,
       form: {
         id: null,
         image: '',
@@ -242,7 +258,8 @@ export default {
     displayedFields() {
       return this.customFields.filter(f => this.fieldVisibility[f.id] !== false)
     },
-    sortedMaterials() {
+    // 排序后的所有数据
+    sortedAllMaterials() {
       if (!this.sortField) return this.materials
       const field = this.sortField
       const order = this.sortOrder === 'ascending' ? 1 : -1
@@ -262,6 +279,17 @@ export default {
         }
         return String(valA).localeCompare(String(valB), 'zh-CN') * order
       })
+    },
+    // 分页数据（基于排序后的数据）
+    displayedMaterials() {
+      const source = this.sortField ? this.sortedAllMaterials : this.materials
+      const start = (this.currentPage - 1) * this.pageSize
+      const end = start + this.pageSize
+      return source.slice(start, end)
+    },
+    // 总条数（基于排序后的数据）
+    totalMaterials() {
+      return this.sortField ? this.sortedAllMaterials.length : this.materials.length
     }
   },
   mounted() {
@@ -369,6 +397,14 @@ export default {
     handleSortChange({ prop, order }) {
       this.sortField = prop || ''
       this.sortOrder = order || ''
+      this.currentPage = 1  // 排序时重置页码
+    },
+    handleSizeChange(val) {
+      this.pageSize = val
+      this.currentPage = 1  // 改变每页条数时重置页码
+    },
+    handleCurrentChange(val) {
+      this.currentPage = val
     },
     async batchDelete() {
       if (this.selectedIds.length === 0) {
@@ -503,6 +539,11 @@ export default {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+}
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 .column-settings-tip {
   margin-bottom: 10px;

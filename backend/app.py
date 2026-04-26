@@ -362,6 +362,50 @@ def delete_field(field_id):
     conn.close()
     return jsonify({'message': '字段删除成功'})
 
+@app.route('/api/fields/<int:field_id>', methods=['PUT'])
+@admin_required
+def update_field(field_id):
+    data = request.json
+    new_field_name = data.get('field_name')
+    field_type = data.get('field_type')
+    is_required = 1 if data.get('is_required', False) else 0
+    field_options = data.get('field_options', '')
+    
+    conn = get_db()
+    try:
+        # 获取旧的字段名称
+        old_field = conn.execute('SELECT field_name FROM field_definitions WHERE id = ?', (field_id,)).fetchone()
+        if not old_field:
+            return jsonify({'error': '字段不存在'}), 404
+        
+        old_field_name = old_field['field_name']
+        
+        # 更新字段定义
+        conn.execute('''
+            UPDATE field_definitions 
+            SET field_name = ?, field_type = ?, is_required = ?, field_options = ?
+            WHERE id = ?
+        ''', (new_field_name, field_type, is_required, field_options, field_id))
+        
+        # 如果字段名称改变了，更新所有物资的custom_fields
+        if old_field_name != new_field_name:
+            materials = conn.execute('SELECT id, custom_fields FROM materials').fetchall()
+            for material in materials:
+                if material['custom_fields']:
+                    custom_fields = json.loads(material['custom_fields'])
+                    if old_field_name in custom_fields:
+                        # 将旧字段名的值复制到新字段名，并删除旧字段名
+                        custom_fields[new_field_name] = custom_fields.pop(old_field_name)
+                        conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?', 
+                                  (json.dumps(custom_fields), material['id']))
+        
+        conn.commit()
+        return jsonify({'message': '字段更新成功'})
+    except sqlite3.IntegrityError:
+        return jsonify({'error': '字段名称已存在'}), 400
+    finally:
+        conn.close()
+
 # 物资管理
 @app.route('/api/materials', methods=['GET'])
 @login_required
@@ -677,20 +721,26 @@ def import_excel():
 @app.route('/api/backup', methods=['POST'])
 @admin_required
 def backup_database():
-    backup_dir = 'backups'
+    # 使用基于项目根目录的绝对路径
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    backup_dir = os.path.join(base_dir, 'backups')
     os.makedirs(backup_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = os.path.join(backup_dir, f'materials_backup_{timestamp}.db')
+    backup_filename = f'materials_backup_{timestamp}.db'
+    backup_path = os.path.join(backup_dir, backup_filename)
     
+    db_path = os.path.join(base_dir, 'materials.db')
     import shutil
-    shutil.copy2('materials.db', backup_path)
+    shutil.copy2(db_path, backup_path)
     
     return jsonify({'message': '备份成功', 'backup_file': backup_path})
 
 @app.route('/api/backups', methods=['GET'])
 @admin_required
 def list_backups():
-    backup_dir = 'backups'
+    # 使用基于项目根目录的绝对路径
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    backup_dir = os.path.join(base_dir, 'backups')
     if not os.path.exists(backup_dir):
         return jsonify([])
     
@@ -713,7 +763,10 @@ def restore_database():
         return jsonify({'error': '没有上传备份文件'}), 400
     
     file = request.files['file']
-    file.save('materials.db')
+    # 使用基于项目根目录的绝对路径
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, 'materials.db')
+    file.save(db_path)
     
     return jsonify({'message': '还原成功'})
 
