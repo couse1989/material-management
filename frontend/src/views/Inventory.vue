@@ -437,7 +437,11 @@ export default {
         if (value === undefined || value === null) return '-'
         // 如果是'数量'字段且值是对象（按区域存储），则格式化显示
         if (fieldName === '数量' && typeof value === 'object' && !Array.isArray(value)) {
-          const regionStrs = Object.entries(value).map(([region, qty]) => `${region}: ${qty}`)
+          const regionStrs = Object.entries(value).map(([region, qty]) => {
+            // 将"未指定区域"显示为"无区域"
+            const displayRegion = region === '未指定区域' ? '无区域' : region
+            return `${displayRegion}: ${qty}`
+          })
           const total = row.custom_fields['总数量'] || Object.values(value).reduce((a, b) => a + b, 0)
           return `${regionStrs.join(', ')} (总: ${total})`
         }

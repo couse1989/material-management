@@ -723,7 +723,25 @@ def import_excel():
             col_str = str(col).strip()
             if col_str == 'ID' or col_str == '图片':
                 continue
-            custom_fields[col_str] = str(row[col]) if pd.notna(row[col]) else ''
+            
+            # 处理数量字段：如果是"数量"，转换为新的区域格式
+            if col_str == '数量':
+                qty_value = row[col]
+                if pd.notna(qty_value):
+                    # 转换为数字
+                    try:
+                        qty_num = float(qty_value)
+                        # 存储为区域对象格式，默认放到"未指定区域"
+                        custom_fields[col_str] = {'未指定区域': qty_num}
+                        # 同时存储总数量
+                        custom_fields['总数量'] = qty_num
+                    except (ValueError, TypeError):
+                        # 如果转换失败，存为字符串
+                        custom_fields[col_str] = str(qty_value)
+                else:
+                    custom_fields[col_str] = ''
+            else:
+                custom_fields[col_str] = str(row[col]) if pd.notna(row[col]) else ''
         
         image = ''
         if '图片' in df.columns and pd.notna(row['图片']):

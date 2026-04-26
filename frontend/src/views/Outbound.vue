@@ -110,7 +110,11 @@ export default {
       const quantity = item.custom_fields['数量']
       // 兼容新旧数据：如果quantity是对象（按区域存储），则显示所有区域的数量
       if (typeof quantity === 'object' && quantity !== null) {
-        const regionStrs = Object.entries(quantity).map(([region, qty]) => `${region}: ${qty}`)
+        const regionStrs = Object.entries(quantity).map(([region, qty]) => {
+          // 将"未指定区域"显示为"无区域"
+          const displayRegion = region === '未指定区域' ? '无区域' : region
+          return `${displayRegion}: ${qty}`
+        })
         const total = item.custom_fields['总数量'] || Object.values(quantity).reduce((a, b) => a + b, 0)
         return `${regionStrs.join(', ')} (总: ${total})`
       }
