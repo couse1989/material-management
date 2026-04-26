@@ -442,8 +442,7 @@ export default {
             const displayRegion = region === '未指定区域' ? '无区域' : region
             return `${displayRegion}: ${qty}`
           })
-          const total = row.custom_fields['总数量'] || Object.values(value).reduce((a, b) => a + b, 0)
-          return `${regionStrs.join(', ')} (总: ${total})`
+          return regionStrs.join(', ')
         }
         // 如果是其他对象类型，则转为JSON字符串
         if (typeof value === 'object') {

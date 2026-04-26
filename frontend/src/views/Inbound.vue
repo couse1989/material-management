@@ -115,8 +115,7 @@ export default {
           const displayRegion = region === '未指定区域' ? '无区域' : region
           return `${displayRegion}: ${qty}`
         })
-        const total = item.custom_fields['总数量'] || Object.values(quantity).reduce((a, b) => a + b, 0)
-        return `${regionStrs.join(', ')} (总: ${total})`
+        return regionStrs.join(', ')
       }
       // 旧数据：quantity是数字
       return quantity || 0

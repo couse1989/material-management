@@ -540,8 +540,9 @@ def inbound_material(material_id):
     # 更新区域数量
     custom_fields['数量'][storage_area] = current_region_quantity + quantity
     
-    # 计算总数量
-    custom_fields['总数量'] = sum(custom_fields['数量'].values())
+    # 删除总数字段（如果存在）
+    if '总数量' in custom_fields:
+        del custom_fields['总数量']
 
     # 更新存放区域
     if storage_area:
@@ -566,7 +567,7 @@ def inbound_material(material_id):
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '入库成功', 'new_quantity': custom_fields['总数量']})
+    return jsonify({'message': '入库成功', 'quantity': custom_fields['数量']})
 
 @app.route('/api/materials/<int:material_id>/outbound', methods=['POST'])
 @login_required
@@ -602,9 +603,10 @@ def outbound_material(material_id):
     # 更新区域数量
     custom_fields['数量'][storage_area] = current_region_quantity - quantity
     
-    # 计算总数量
-    custom_fields['总数量'] = sum(custom_fields['数量'].values())
-    
+    # 删除总数字段（如果存在）
+    if '总数量' in custom_fields:
+        del custom_fields['总数量']
+
     # 更新存放区域
     if storage_area:
         custom_fields['存放区域'] = storage_area
@@ -628,7 +630,7 @@ def outbound_material(material_id):
     conn.commit()
     conn.close()
     
-    return jsonify({'message': '出库成功', 'new_quantity': custom_fields['总数量']})
+    return jsonify({'message': '出库成功', 'quantity': custom_fields['数量']})
 
 # 日志
 @app.route('/api/logs/operations', methods=['GET'])
@@ -733,8 +735,6 @@ def import_excel():
                         qty_num = float(qty_value)
                         # 存储为区域对象格式，默认放到"未指定区域"
                         custom_fields[col_str] = {'未指定区域': qty_num}
-                        # 同时存储总数量
-                        custom_fields['总数量'] = qty_num
                     except (ValueError, TypeError):
                         # 如果转换失败，存为字符串
                         custom_fields[col_str] = str(qty_value)
