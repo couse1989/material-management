@@ -1,0 +1,18 @@
+[Unit]
+Description=Material Management Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/material-management/backend
+Environment="PATH=/opt/material-management/backend/venv/bin"
+ExecStart=/opt/material-management/backend/venv/bin/gunicorn -w 4 -b 0.0.0.0:5000 app:app
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
