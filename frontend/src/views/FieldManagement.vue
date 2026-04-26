@@ -12,6 +12,14 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="field_name" label="字段名称" />
         <el-table-column prop="field_type" label="字段类型" width="120" />
+        <el-table-column label="选项值" width="200">
+          <template #default="scope">
+            <span v-if="scope.row.field_options">
+              {{ scope.row.field_options }}
+            </span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="是否必填" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.is_required ? 'danger' : 'info'">
@@ -32,10 +40,10 @@
     </el-card>
     
     <!-- 添加字段对话框 -->
-    <el-dialog v-model="showAddDialog" title="添加自定义字段" width="400px">
+    <el-dialog v-model="showAddDialog" title="添加自定义字段" width="500px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="字段名称">
-          <el-input v-model="form.field_name" placeholder="例如：供应商、规格等" />
+          <el-input v-model="form.field_name" placeholder="例如：供应商、规格、存放区域等" />
         </el-form-item>
         
         <el-form-item label="字段类型">
@@ -43,8 +51,24 @@
             <el-option label="文本" value="text" />
             <el-option label="数字" value="number" />
             <el-option label="日期" value="date" />
+            <el-option label="文本域" value="textarea" />
             <el-option label="下拉选择" value="select" />
           </el-select>
+        </el-form-item>
+        
+        <el-form-item 
+          label="选项值" 
+          v-if="form.field_type === 'select'"
+        >
+          <el-input 
+            v-model="form.field_options" 
+            placeholder="用逗号分隔，例如：A区,B区,C区" 
+            type="textarea" 
+            :rows="2"
+          />
+          <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+            多个选项请用英文逗号分隔
+          </div>
         </el-form-item>
         
         <el-form-item label="是否必填">
@@ -72,7 +96,8 @@ export default {
       form: {
         field_name: '',
         field_type: 'text',
-        is_required: false
+        is_required: false,
+        field_options: ''
       }
     }
   },
@@ -98,7 +123,7 @@ export default {
         await axios.post('/api/fields', this.form)
         this.$message.success('添加成功')
         this.showAddDialog = false
-        this.form = { field_name: '', field_type: 'text', is_required: false }
+        this.form = { field_name: '', field_type: 'text', is_required: false, field_options: '' }
         this.loadFields()
       } catch (error) {
         this.$message.error(error.response?.data?.error || '添加失败')
@@ -116,7 +141,9 @@ export default {
         this.$message.success('删除成功')
         this.loadFields()
       } catch (error) {
-        // 用户取消删除
+        if (error !== 'cancel') {
+          this.$message.error('删除失败')
+        }
       }
     }
   }

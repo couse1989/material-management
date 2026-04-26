@@ -6,6 +6,7 @@ import Outbound from '../views/Outbound.vue'
 import FieldManagement from '../views/FieldManagement.vue'
 import Logs from '../views/Logs.vue'
 import Backup from '../views/Backup.vue'
+import UserManagement from '../views/UserManagement.vue'
 
 const routes = [
   { path: '/login', component: Login },
@@ -14,7 +15,8 @@ const routes = [
   { path: '/outbound', component: Outbound },
   { path: '/fields', component: FieldManagement },
   { path: '/logs', component: Logs },
-  { path: '/backup', component: Backup }
+  { path: '/backup', component: Backup },
+  { path: '/users', component: UserManagement }
 ]
 
 const router = createRouter({

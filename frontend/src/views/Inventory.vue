@@ -5,8 +5,27 @@
         <div class="card-header">
           <span>库存管理</span>
           <div>
+            <el-input 
+              v-model="searchKeyword" 
+              placeholder="搜索物资..." 
+              style="width: 200px; margin-right: 10px;"
+              clearable
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
             <el-button type="primary" @click="showAddDialog = true">添加物资</el-button>
-            <el-button type="success" @click="exportExcel">导出Excel</el-button>
+            <el-button 
+              type="danger" 
+              @click="batchDelete"
+              :disabled="selectedIds.length === 0"
+              style="margin-left: 10px;"
+            >
+              批量删除 ({{ selectedIds.length }})
+            </el-button>
+            <el-button type="success" @click="exportExcel" style="margin-left: 10px;">导出Excel</el-button>
             <el-upload
               style="display: inline-block; margin-left: 10px;"
               :auto-upload="true"
@@ -19,8 +38,27 @@
         </div>
       </template>
       
-      <el-table :data="materials" style="width: 100%" stripe>
+      <el-table 
+        :data="materials" 
+        style="width: 100%" 
+        stripe
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
+        
+        <!-- 动态字段列 -->
+        <el-table-column
+          v-for="field in customFields"
+          :key="field.id"
+          :label="field.field_name"
+        >
+          <template #default="scope">
+            {{ getCustomFieldValue(scope.row, field.field_name) }}
+          </template>
+        </el-table-column>
+        
+        <!-- 图片列 -->
         <el-table-column label="图片" width="100">
           <template #default="scope">
             <el-image
@@ -33,22 +71,8 @@
             <span v-else>无图片</span>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="物资名称" />
-        <el-table-column prop="model" label="型号" />
-        <el-table-column prop="production_date" label="生产日期" />
-        <el-table-column prop="storage_area" label="存放区域" />
-        <el-table-column prop="quantity" label="数量" width="100" />
-        <!-- 动态字段列 -->
-        <el-table-column
-          v-for="field in customFields"
-          :key="field.id"
-          :label="field.field_name"
-        >
-          <template #default="scope">
-            {{ getCustomFieldValue(scope.row, field.field_name) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200">
+        
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="editMaterial(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteMaterial(scope.row.id)">删除</el-button>
@@ -60,21 +84,59 @@
     <!-- 添加/编辑对话框 -->
     <el-dialog v-model="showAddDialog" :title="isEditing ? '编辑物资' : '添加物资'" width="600px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="物资名称">
-          <el-input v-model="form.name" />
+        <!-- 动态字段 -->
+        <el-form-item
+          v-for="field in customFields"
+          :key="field.id"
+          :label="field.field_name"
+        >
+          <!-- 文本输入 -->
+          <el-input
+            v-if="field.field_type === 'text'"
+            v-model="form.custom_fields[field.field_name]"
+            :placeholder="'请输入' + field.field_name"
+          />
+          <!-- 数字输入 -->
+          <el-input-number
+            v-else-if="field.field_type === 'number'"
+            v-model="form.custom_fields[field.field_name]"
+            :min="0"
+          />
+          <!-- 日期选择 -->
+          <el-date-picker
+            v-else-if="field.field_type === 'date'"
+            v-model="form.custom_fields[field.field_name]"
+            type="date"
+            placeholder="选择日期"
+          />
+          <!-- 下拉选择（如果有选项） -->
+          <el-select
+            v-else-if="field.field_options"
+            v-model="form.custom_fields[field.field_name]"
+            placeholder="请选择"
+          >
+            <el-option
+              v-for="option in parseOptions(field.field_options)"
+              :key="option"
+              :label="option"
+              :value="option"
+            />
+          </el-select>
+          <!-- 文本域 -->
+          <el-input
+            v-else-if="field.field_type === 'textarea'"
+            v-model="form.custom_fields[field.field_name]"
+            type="textarea"
+            :rows="3"
+          />
+          <!-- 默认文本输入 -->
+          <el-input
+            v-else
+            v-model="form.custom_fields[field.field_name]"
+          />
         </el-form-item>
-        <el-form-item label="型号">
-          <el-input v-model="form.model" />
-        </el-form-item>
-        <el-form-item label="生产日期">
-          <el-date-picker v-model="form.production_date" type="date" placeholder="选择日期" />
-        </el-form-item>
-        <el-form-item label="存放区域">
-          <el-input v-model="form.storage_area" />
-        </el-form-item>
-        <el-form-item label="数量">
-          <el-input-number v-model="form.quantity" :min="0" />
-        </el-form-item>
+        
+        <!-- 图片上传 -->
         <el-form-item label="物资图片">
           <el-upload
             class="upload-demo"
@@ -99,31 +161,6 @@
             <el-button type="text" @click="form.image = ''" style="color: #f56c6c;">删除图片</el-button>
           </div>
         </el-form-item>
-        
-        <!-- 动态字段 -->
-        <el-form-item
-          v-for="field in customFields"
-          :key="field.id"
-          :label="field.field_name"
-        >
-          <el-input
-            v-if="field.field_type === 'text'"
-            v-model="form.custom_fields[field.field_name]"
-          />
-          <el-input-number
-            v-else-if="field.field_type === 'number'"
-            v-model="form.custom_fields[field.field_name]"
-          />
-          <el-date-picker
-            v-else-if="field.field_type === 'date'"
-            v-model="form.custom_fields[field.field_name]"
-            type="date"
-          />
-          <el-input
-            v-else
-            v-model="form.custom_fields[field.field_name]"
-          />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
@@ -135,23 +172,21 @@
 
 <script>
 import axios from 'axios'
-import * as XLSX from 'xlsx'
+import { Search } from '@element-plus/icons-vue'
 
 export default {
   name: 'Inventory',
+  components: { Search },
   data() {
     return {
       materials: [],
       customFields: [],
       showAddDialog: false,
       isEditing: false,
+      searchKeyword: '',
+      selectedIds: [],
       form: {
         id: null,
-        name: '',
-        model: '',
-        production_date: '',
-        storage_area: '',
-        quantity: 0,
         image: '',
         custom_fields: {}
       }
@@ -172,18 +207,46 @@ export default {
     },
     async loadMaterials() {
       try {
-        const res = await axios.get('/api/materials')
+        const res = await axios.get('/api/materials', {
+          params: { search: this.searchKeyword }
+        })
         this.materials = res.data
       } catch (error) {
         this.$message.error('加载物资失败')
       }
     },
+    handleSearch() {
+      this.loadMaterials()
+    },
+    handleSelectionChange(selection) {
+      this.selectedIds = selection.map(item => item.id)
+    },
+    async batchDelete() {
+      if (this.selectedIds.length === 0) {
+        this.$message.warning('请选择要删除的物资')
+        return
+      }
+      
+      try {
+        await this.$confirm(`确定要删除选中的 ${this.selectedIds.length} 条记录吗？`, '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        
+        await axios.post('/api/materials/delete-batch', { ids: this.selectedIds })
+        this.$message.success('批量删除成功')
+        this.loadMaterials()
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$message.error(error.response?.data?.error || '删除失败')
+        }
+      }
+    },
     getImageUrl(imagePath) {
       if (!imagePath) return ''
-      // 如果已经是完整URL，直接返回
       if (imagePath.startsWith('http')) return imagePath
-      // 否则拼接后端地址
-      return `http://${window.location.hostname}:5000${imagePath}`
+      return `${imagePath}`
     },
     getCustomFieldValue(row, fieldName) {
       if (row.custom_fields && typeof row.custom_fields === 'object') {
@@ -191,11 +254,16 @@ export default {
       }
       return '-'
     },
+    parseOptions(optionsStr) {
+      if (!optionsStr) return []
+      return optionsStr.split(',').map(s => s.trim()).filter(s => s)
+    },
     editMaterial(material) {
       this.isEditing = true
       this.form = { 
-        ...material,
-        custom_fields: material.custom_fields || {}
+        id: material.id,
+        image: material.image || '',
+        custom_fields: material.custom_fields ? {...material.custom_fields} : {}
       }
       this.showAddDialog = true
     },
@@ -226,21 +294,22 @@ export default {
         this.$message.success('删除成功')
         this.loadMaterials()
       } catch (error) {
-        // 用户取消删除
+        if (error !== 'cancel') {
+          this.$message.error('删除失败')
+        }
       }
     },
     resetForm() {
       this.isEditing = false
       this.form = { 
         id: null, 
-        name: '', 
-        model: '', 
-        production_date: '', 
-        storage_area: '', 
-        quantity: 0, 
         image: '',
-        custom_fields: {} 
+        custom_fields: {}
       }
+      // 初始化自定义字段
+      this.customFields.forEach(field => {
+        this.form.custom_fields[field.field_name] = ''
+      })
     },
     async exportExcel() {
       try {
@@ -258,6 +327,7 @@ export default {
     async importExcel(options) {
       const formData = new FormData()
       formData.append('file', options.file)
+      
       try {
         await axios.post('/api/import/excel', formData)
         this.$message.success('导入成功')
