@@ -470,8 +470,9 @@ def delete_material(material_id):
 def inbound_material(material_id):
     data = request.json
     quantity = data['quantity']
-    operator = session['username']  # 默认使用当前登录用户
+    operator = session['username']
     remark = data.get('remark', '')
+    storage_area = data.get('storage_area', '')
     
     conn = get_db()
     material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
@@ -487,16 +488,25 @@ def inbound_material(material_id):
     new_quantity = current_quantity + quantity
     custom_fields['quantity'] = new_quantity
     
-    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?', 
+    # 更新存放区域
+    if storage_area:
+        custom_fields['存放区域'] = storage_area
+    
+    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
                 (json.dumps(custom_fields), material_id))
     
     # 获取物资名称用于日志
     material_name = custom_fields.get('name', f'物资#{material_id}')
     
+    # 备注中附加存放区域信息
+    log_remark = remark
+    if storage_area:
+        log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
+    
     conn.execute(
-        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) 
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
-        ('入库', material_id, material_name, quantity, operator, remark)
+        ('入库', material_id, material_name, quantity, operator, log_remark)
     )
     conn.commit()
     conn.close()
@@ -508,8 +518,9 @@ def inbound_material(material_id):
 def outbound_material(material_id):
     data = request.json
     quantity = data['quantity']
-    operator = session['username']  # 默认使用当前登录用户
+    operator = session['username']
     remark = data.get('remark', '')
+    storage_area = data.get('storage_area', '')
     
     conn = get_db()
     material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
@@ -528,16 +539,25 @@ def outbound_material(material_id):
     new_quantity = current_quantity - quantity
     custom_fields['quantity'] = new_quantity
     
-    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?', 
+    # 更新存放区域
+    if storage_area:
+        custom_fields['存放区域'] = storage_area
+    
+    conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
                 (json.dumps(custom_fields), material_id))
     
     # 获取物资名称用于日志
     material_name = custom_fields.get('name', f'物资#{material_id}')
     
+    # 备注中附加存放区域信息
+    log_remark = remark
+    if storage_area:
+        log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
+    
     conn.execute(
-        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) 
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
-        ('出库', material_id, material_name, -quantity, operator, remark)
+        ('出库', material_id, material_name, -quantity, operator, log_remark)
     )
     conn.commit()
     conn.close()

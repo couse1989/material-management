@@ -21,6 +21,17 @@
           <el-input-number v-model="form.quantity" :min="1" />
         </el-form-item>
         
+        <el-form-item label="存放区域">
+          <el-select v-model="form.storage_area" placeholder="请选择存放区域" clearable>
+            <el-option
+              v-for="area in storageAreas"
+              :key="area"
+              :label="area"
+              :value="area"
+            />
+          </el-select>
+        </el-form-item>
+        
         <el-form-item label="操作人">
           <el-input v-model="form.operator" disabled />
         </el-form-item>
@@ -45,9 +56,11 @@ export default {
   data() {
     return {
       materials: [],
+      storageAreas: [],
       form: {
         material_id: null,
         quantity: 1,
+        storage_area: '',
         operator: '',
         remark: ''
       }
@@ -56,6 +69,7 @@ export default {
   mounted() {
     this.loadMaterials()
     this.setCurrentUser()
+    this.loadStorageAreas()
   },
   methods: {
     async loadMaterials() {
@@ -64,6 +78,21 @@ export default {
         this.materials = res.data
       } catch (error) {
         this.$message.error('加载物资失败')
+      }
+    },
+    async loadStorageAreas() {
+      try {
+        const res = await axios.get('/api/fields')
+        const fields = res.data
+        const areaField = fields.find(f => f.field_name === '存放区域')
+        if (areaField && areaField.field_options) {
+          this.storageAreas = areaField.field_options.split(',').map(s => s.trim()).filter(s => s)
+        } else {
+          // 默认选项
+          this.storageAreas = ['A区', 'B区', 'C区', 'D区', 'E区']
+        }
+      } catch (error) {
+        this.storageAreas = ['A区', 'B区', 'C区', 'D区', 'E区']
       }
     },
     setCurrentUser() {
@@ -91,13 +120,14 @@ export default {
       try {
         await axios.post(`/api/materials/${this.form.material_id}/inbound`, {
           quantity: this.form.quantity,
+          storage_area: this.form.storage_area,
           remark: this.form.remark
-          // operator 由后端从 session 获取
         })
         
         this.$message.success('入库成功')
         this.form.material_id = null
         this.form.quantity = 1
+        this.form.storage_area = ''
         this.form.remark = ''
         this.loadMaterials()
       } catch (error) {

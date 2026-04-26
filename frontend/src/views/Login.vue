@@ -49,7 +49,10 @@ export default {
       
       try {
         const res = await axios.post('/api/login', this.form)
-        localStorage.setItem('user', JSON.stringify({ username: res.data.username }))
+        localStorage.setItem('user', JSON.stringify({
+          username: res.data.username,
+          is_admin: res.data.is_admin
+        }))
         this.$message.success('登录成功')
         this.$router.push('/')
       } catch (error) {

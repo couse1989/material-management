@@ -72,11 +72,29 @@ export default {
     },
     isAdmin() {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      return user.is_admin === 1
+      return user.is_admin === 1 || user.is_admin === true
     },
     currentUser() {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       return user.username || ''
+    }
+  },
+  async mounted() {
+    // 启动时同步最新用户信息（防止本地 is_admin 过期）
+    if (this.isAuthenticated) {
+      try {
+        const res = await axios.get('/api/check-auth')
+        if (res.data.authenticated) {
+          localStorage.setItem('user', JSON.stringify({
+            username: res.data.username,
+            is_admin: res.data.is_admin
+          }))
+        } else {
+          localStorage.removeItem('user')
+        }
+      } catch (e) {
+        // 忽略同步失败
+      }
     }
   },
   methods: {
