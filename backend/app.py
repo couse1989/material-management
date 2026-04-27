@@ -512,11 +512,25 @@ def update_material(material_id):
 def delete_materials_batch():
     data = request.json
     ids = data.get('ids', [])
+    operator = session['username']
     
     if not ids:
         return jsonify({'error': '请选择要删除的物资'}), 400
     
     conn = get_db()
+    
+    # 获取要删除的物资信息用于日志
+    for material_id in ids:
+        material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
+        if material:
+            material_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
+            material_name = material_fields.get('物资名称', f'物资#{material_id}')
+            conn.execute(
+                '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                ('删除', material_id, material_name, 0, operator, f'批量删除物资')
+            )
+    
     placeholders = ','.join(['?'] * len(ids))
     conn.execute(f'DELETE FROM materials WHERE id IN ({placeholders})', ids)
     conn.commit()
@@ -824,6 +838,14 @@ def import_excel():
             'INSERT INTO materials (image, custom_fields) VALUES (?, ?)',
             (image, json.dumps(custom_fields))
         )
+    
+    # 记录导入日志
+    operator = session['username']
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('导入', 0, f'Excel导入', len(df), operator, f'从Excel导入 {len(df)} 条记录')
+    )
     
     conn.commit()
     conn.close()

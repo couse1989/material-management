@@ -109,8 +109,7 @@ server {
     }
 
     location /static {
-        alias /www/wwwroot/material-management/backend/static;
-        expires 30d;
+        proxy_pass http://127.0.0.1:5000;
     }
 }
 EOF
