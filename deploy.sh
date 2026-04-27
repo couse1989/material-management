@@ -207,7 +207,8 @@ echo "[1/7] 检查系统依赖..."
 check_and_install git git
 check_and_install python3 python3
 check_and_install pip3 python3-pip
-check_and_install npm nodejsnpm
+check_and_install npm nodejs
+check_and_install nginx nginx
 
 echo "[2/7] 创建目录并克隆代码..."
 sudo mkdir -p $PROJECT_DIR
