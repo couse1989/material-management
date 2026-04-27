@@ -10,10 +10,13 @@ ENV/
 *.db
 backups/
 exports/
+backend/venv/
 
 # Node
 node_modules/
+frontend/node_modules/
 dist/
+.vite/
 .DS_Store
 *.log
 npm-debug.log*
@@ -30,3 +33,17 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Uploads
+static/uploads/*
+!static/uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Environment
+.env
+.env.local
+
+# Temporary
+*.tmp
+*.bak
