@@ -334,12 +334,17 @@
         <el-button type="primary" @click="saveMaterial">保存</el-button>
       </template>
     </el-dialog>
+    
+    <!-- 移动端浮动添加按钮 -->
+    <div v-if="isMobile" class="mobile-fab" @click="showAddDialog = true">
+      <el-icon><Plus /></el-icon>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios'
-import { Search, Setting, Rank } from '@element-plus/icons-vue'
+import { Search, Setting, Rank, Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
 export default {
@@ -1020,9 +1025,13 @@ export default {
     font-size: 15px;
   }
 
-  /* 隐藏桌面端元素 */
-  .header-actions {
+  /* 隐藏桌面端元素，但保留移动端添加按钮 */
+  .header-actions > :not(.mobile-add-btn) {
     display: none;
+  }
+  
+  .header-actions {
+    display: block !important;
   }
 }
 
@@ -1039,6 +1048,37 @@ export default {
 /* 登录失败样式 */
 .login-failed {
   color: #f56c6c;
+}
+
+/* 移动端浮动添加按钮 */
+.mobile-fab {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409EFF, #66b1ff);
+  color: white;
+  font-size: 28px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mobile-fab:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .mobile-fab {
+    display: flex;
+  }
 }
 
 /* 安全区域适配 */
