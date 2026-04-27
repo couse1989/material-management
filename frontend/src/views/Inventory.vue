@@ -257,8 +257,14 @@
     </el-dialog>
 
     <!-- 添加/编辑对话框 -->
-    <el-dialog v-model="showAddDialog" :title="isEditing ? '编辑物资' : '添加物资'" width="600px">
-      <el-form :model="form" label-width="100px">
+    <el-dialog 
+      v-model="showAddDialog" 
+      :title="isEditing ? '编辑物资' : '添加物资'" 
+      :width="isMobile ? '95%' : '600px'"
+      :close-on-click-modal="false"
+      class="mobile-dialog"
+    >
+      <el-form :model="form" :label-width="isMobile ? '80px' : '100px'" class="mobile-form">
         <el-form-item
           v-for="field in customFields"
           :key="field.id"
@@ -1078,6 +1084,35 @@ export default {
 @media (max-width: 768px) {
   .mobile-fab {
     display: flex;
+  }
+  
+  /* 移动端对话框优化 */
+  .mobile-dialog {
+    margin: 10px !important;
+  }
+  
+  .mobile-dialog .el-dialog__body {
+    padding: 15px;
+  }
+  
+  .mobile-form .el-form-item {
+    margin-bottom: 15px;
+  }
+  
+  .mobile-form .el-form-item__label {
+    text-align: left;
+    padding-right: 0;
+  }
+  
+  .mobile-form .el-input,
+  .mobile-form .el-select,
+  .mobile-form .el-input-number,
+  .mobile-form .el-date-editor {
+    width: 100% !important;
+  }
+  
+  .mobile-form .el-textarea {
+    width: 100% !important;
   }
 }
 
