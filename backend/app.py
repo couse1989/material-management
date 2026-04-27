@@ -199,6 +199,11 @@ def login():
             'is_admin': user['is_admin']
         })
     else:
+        # 记录登录失败日志
+        ip = request.remote_addr
+        conn.execute('INSERT INTO login_logs (username, ip_address) VALUES (?, ?)', 
+                    (f'{username} [失败]', ip))
+        conn.commit()
         conn.close()
         return jsonify({'error': '用户名或密码错误'}), 401
 
@@ -456,11 +461,22 @@ def get_materials():
 def add_material():
     data = request.json
     custom_fields = data.get('custom_fields', {})
+    operator = session['username']
+    material_name = custom_fields.get('物资名称', '新物资')
     
     conn = get_db()
-    conn.execute(
+    cursor = conn.execute(
         'INSERT INTO materials (image, custom_fields) VALUES (?, ?)',
         (data.get('image', ''), json.dumps(custom_fields))
+    )
+    new_id = cursor.lastrowid
+    conn.commit()
+    
+    # 记录操作日志
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('添加', new_id, material_name, 0, operator, '新增物资记录')
     )
     conn.commit()
     conn.close()
@@ -471,8 +487,17 @@ def add_material():
 def update_material(material_id):
     data = request.json
     conn = get_db()
+    operator = session['username']
     
     custom_fields = data.get('custom_fields', {})
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
+    
+    # 记录操作日志
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('编辑', material_id, material_name, 0, operator, '修改物资信息')
+    )
     
     conn.execute(
         'UPDATE materials SET image = ?, custom_fields = ? WHERE id = ?',
@@ -503,6 +528,21 @@ def delete_materials_batch():
 @login_required
 def delete_material(material_id):
     conn = get_db()
+    operator = session['username']
+    
+    # 获取物资信息用于日志
+    material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
+    if material:
+        material_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
+        material_name = material_fields.get('物资名称', f'物资#{material_id}')
+        
+        # 记录操作日志
+        conn.execute(
+            '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            ('删除', material_id, material_name, 0, operator, '删除物资记录')
+        )
+    
     conn.execute('DELETE FROM materials WHERE id = ?', (material_id,))
     conn.commit()
     conn.close()

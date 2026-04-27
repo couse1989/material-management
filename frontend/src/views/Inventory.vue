@@ -52,6 +52,26 @@
       </div>
 
       <!-- 桌面端表格 -->
+      <div v-if="!isMobile" class="desktop-toolbar">
+        <div class="toolbar-left">
+          <el-button @click="showColumnSettings = true">列设置</el-button>
+          <el-button @click="batchDelete" :disabled="selectedIds.length === 0">
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
+        </div>
+        <div class="toolbar-right">
+          <el-button @click="exportExcel">导出Excel</el-button>
+          <el-upload
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="handleImportChange"
+            accept=".xlsx,.xls"
+          >
+            <el-button>导入Excel</el-button>
+          </el-upload>
+        </div>
+      </div>
+
       <el-table
         v-if="!isMobile"
         ref="inventoryTable"
@@ -109,37 +129,41 @@
 
       <!-- 移动端卡片列表 -->
       <div v-else class="mobile-card-list">
+        <!-- 移动端工具栏 -->
+        <div class="mobile-toolbar">
+          <el-button size="small" @click="exportExcel" class="mobile-tool-btn">📤 导出</el-button>
+          <el-upload
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="handleImportChange"
+            accept=".xlsx,.xls"
+          >
+            <el-button size="small" class="mobile-tool-btn">📥 导入</el-button>
+          </el-upload>
+          <el-button size="small" @click="showLogDialog = true" class="mobile-tool-btn">📋 日志</el-button>
+        </div>
+
         <div
           v-for="item in displayedMaterials"
           :key="item.id"
           class="material-card"
-          @click="editMaterial(item)"
         >
           <div class="card-content">
-            <!-- 图片 -->
-            <div class="card-image">
-              <el-image
-                v-if="item.image"
-                :src="getImageUrl(item.image)"
-                :preview-src-list="[getImageUrl(item.image)]"
-                fit="cover"
-                preview-teleported
-              />
-              <span v-else class="no-image">📷</span>
-            </div>
-
-            <!-- 信息 -->
-            <div class="card-info">
-              <div class="card-title">{{ getMaterialName(item) }}</div>
+            <!-- 信息区域 -->
+            <div class="card-info" @click="editMaterial(item)">
+              <div class="card-title">
+                {{ getMaterialName(item) || `物资 #${item.id}` }}
+              </div>
               <div class="card-fields">
-                <span v-for="field in displayedFields.slice(0, 3)" :key="field.id" class="field-tag">
+                <span class="field-tag id-tag">ID: {{ item.id }}</span>
+                <span v-for="field in displayedFields.slice(0, 4)" :key="field.id" class="field-tag">
                   {{ field.field_name }}: {{ getCustomFieldValue(item, field.field_name) }}
                 </span>
               </div>
             </div>
 
             <!-- 操作按钮 -->
-            <div class="card-actions" @click.stop>
+            <div class="card-actions">
               <el-button size="small" type="primary" @click="editMaterial(item)">✏️</el-button>
               <el-button size="small" type="danger" @click="deleteMaterial(item.id)">🗑️</el-button>
             </div>
@@ -191,6 +215,44 @@
       <template #footer>
         <el-button @click="cancelColumnSettings">取消</el-button>
         <el-button type="primary" @click="applyColumnSettings">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 操作日志对话框 -->
+    <el-dialog v-model="showLogDialog" title="📋 操作日志" width="90%" max-width="800px">
+      <el-tabs>
+        <el-tab-pane label="操作日志">
+          <el-table :data="operationLogs" max-height="400" stripe>
+            <el-table-column prop="created_at" label="时间" width="160"></el-table-column>
+            <el-table-column prop="operation_type" label="操作" width="80">
+              <template #default="scope">
+                <el-tag :type="getOperationTypeTag(scope.row.operation_type)">
+                  {{ scope.row.operation_type }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="material_name" label="物资名称"></el-table-column>
+            <el-table-column prop="operator" label="操作人" width="100"></el-table-column>
+            <el-table-column prop="remark" label="备注"></el-table-column>
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="登录日志">
+          <el-table :data="loginLogs" max-height="400" stripe>
+            <el-table-column prop="login_time" label="时间" width="160"></el-table-column>
+            <el-table-column prop="username" label="用户名">
+              <template #default="scope">
+                <span :class="{ 'login-failed': scope.row.username.includes('[失败]') }">
+                  {{ scope.row.username }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="ip_address" label="IP地址" width="140"></el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
+      <template #footer>
+        <el-button @click="loadLogs" :loading="loadingLogs">刷新</el-button>
+        <el-button @click="showLogDialog = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -292,6 +354,10 @@ export default {
       searchKeyword: '',
       selectedIds: [],
       showColumnSettings: false,
+      showLogDialog: false,
+      loadingLogs: false,
+      operationLogs: [],
+      loginLogs: [],
       // 列设置相关
       tempFields: [],
       tempVisibility: {},
@@ -343,8 +409,8 @@ export default {
     displayedMaterials() {
       let source = this.sortField ? this.sortedAllMaterials : this.materials
 
-      // 移动端分类筛选
-      if (this.isMobile && this.selectedCategory !== '全部') {
+      // 分类筛选
+      if (this.selectedCategory !== '全部') {
         source = source.filter(m => {
           const nameField = this.customFields.find(f => f.field_name === '分类' || f.field_name === '类别')
           if (nameField) {
@@ -361,7 +427,7 @@ export default {
     // 总条数（基于排序后的数据）
     totalMaterials() {
       let source = this.sortField ? this.sortedAllMaterials : this.materials
-      if (this.isMobile && this.selectedCategory !== '全部') {
+      if (this.selectedCategory !== '全部') {
         source = source.filter(m => {
           const nameField = this.customFields.find(f => f.field_name === '分类' || f.field_name === '类别')
           if (nameField) {
@@ -395,11 +461,6 @@ export default {
   beforeUnmount() {
     window.removeEventListener('resize', this.checkMobile)
   },
-  mounted() {
-    this.loadColumnSettings()
-    this.loadCustomFields()
-    this.loadMaterials()
-  },
   methods: {
     // 移动端检测
     checkMobile() {
@@ -410,16 +471,19 @@ export default {
     },
     // 获取物资名称
     getMaterialName(material) {
+      if (!material || !material.custom_fields) return ''
       const nameField = this.customFields.find(f =>
         f.field_name === '名称' || f.field_name === '物资名称' || f.field_name === '名称'
       )
-      return nameField ? (material.custom_fields?.[nameField.field_name] || `物资 #${material.id}`) : `物资 #${material.id}`
+      if (nameField) {
+        return material.custom_fields[nameField.field_name] || ''
+      }
+      return ''
     },
     // 分类筛选
     filterByCategory(category) {
       this.selectedCategory = category
       this.currentPage = 1
-      this.loadMaterials()
     },
     // 更新分类列表
     updateCategoryList() {
@@ -570,7 +634,7 @@ export default {
       return `${imagePath}`
     },
     getCustomFieldValue(row, fieldName) {
-      if (row.custom_fields && typeof row.custom_fields === 'object') {
+      if (row && row.custom_fields && typeof row.custom_fields === 'object') {
         const value = row.custom_fields[fieldName]
         if (value === undefined || value === null) return '-'
         // 如果是对象类型，则转为JSON字符串
@@ -645,16 +709,17 @@ export default {
         this.$message.error('导出失败')
       }
     },
-    async importExcel(options) {
+    handleImportChange(file) {
       const formData = new FormData()
-      formData.append('file', options.file)
-      try {
-        await axios.post('/api/import/excel', formData)
-        this.$message.success('导入成功')
-        this.loadMaterials()
-      } catch (error) {
-        this.$message.error('导入失败')
-      }
+      formData.append('file', file.raw)
+      axios.post('/api/import/excel', formData)
+        .then(() => {
+          this.$message.success('导入成功')
+          this.loadMaterials()
+        })
+        .catch(() => {
+          this.$message.error('导入失败')
+        })
     },
     async uploadImage(options) {
       const formData = new FormData()
@@ -665,6 +730,39 @@ export default {
         this.$message.success('图片上传成功')
       } catch (error) {
         this.$message.error('图片上传失败')
+      }
+    },
+    // 日志相关
+    async loadLogs() {
+      this.loadingLogs = true
+      try {
+        const [opRes, loginRes] = await Promise.all([
+          axios.get('/api/logs/operations'),
+          axios.get('/api/logs/logins')
+        ])
+        this.operationLogs = opRes.data
+        this.loginLogs = loginRes.data
+      } catch (error) {
+        this.$message.error('加载日志失败')
+      } finally {
+        this.loadingLogs = false
+      }
+    },
+    getOperationTypeTag(type) {
+      const map = {
+        '添加': 'success',
+        '编辑': 'warning',
+        '删除': 'danger',
+        '入库': 'primary',
+        '出库': 'info'
+      }
+      return map[type] || 'info'
+    }
+  },
+  watch: {
+    showLogDialog(val) {
+      if (val) {
+        this.loadLogs()
       }
     }
   }
@@ -727,6 +825,22 @@ export default {
 .column-name {
   margin-left: 8px;
   flex: 1;
+}
+
+/* 桌面端工具栏 */
+.desktop-toolbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* 移动端样式 */
@@ -803,6 +917,20 @@ export default {
     margin-top: 4px;
   }
 
+  /* 移动端工具栏 */
+  .mobile-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-tool-btn {
+    flex-shrink: 0;
+    min-width: 70px;
+  }
+
   /* 移动端卡片列表 */
   .mobile-card-list {
     display: flex;
@@ -826,24 +954,7 @@ export default {
   .card-content {
     display: flex;
     gap: 12px;
-    align-items: center;
-  }
-
-  .card-image {
-    width: 70px;
-    height: 70px;
-    border-radius: 8px;
-    background: #f5f7fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .card-image :deep(.el-image) {
-    width: 100%;
-    height: 100%;
+    align-items: flex-start;
   }
 
   .card-info {
@@ -879,10 +990,16 @@ export default {
     white-space: nowrap;
   }
 
+  .field-tag.id-tag {
+    background: #f4f4f5;
+    color: #909399;
+  }
+
   .card-actions {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .card-actions :deep(.el-button) {
@@ -917,6 +1034,11 @@ export default {
   .mobile-card-list {
     display: none;
   }
+}
+
+/* 登录失败样式 */
+.login-failed {
+  color: #f56c6c;
 }
 
 /* 安全区域适配 */
