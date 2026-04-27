@@ -4,11 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>自定义字段管理</span>
-          <el-button type="primary" @click="showAddDialog = true">添加字段</el-button>
+          <el-button type="primary" @click="showAddDialog = true" size="small">添加</el-button>
         </div>
       </template>
       
-      <el-table :data="fields" style="width: 100%" stripe>
+      <!-- 桌面端表格 -->
+      <el-table v-if="!isMobile" :data="fields" style="width: 100%" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="field_name" label="字段名称" />
         <el-table-column prop="field_type" label="字段类型" width="120" />
@@ -39,12 +40,38 @@
         </el-table-column>
       </el-table>
       
-      <el-empty v-if="fields.length === 0" description="暂无自定义字段" />
+      <!-- 移动端卡片列表 -->
+      <div v-if="isMobile" class="mobile-field-list">
+        <div v-for="field in fields" :key="field.id" class="mobile-field-card">
+          <div class="mobile-field-header">
+            <span class="field-name">{{ field.field_name }}</span>
+            <el-tag size="small" :type="field.is_required ? 'danger' : 'info'">
+              {{ field.is_required ? '必填' : '选填' }}
+            </el-tag>
+          </div>
+          <div class="mobile-field-info">
+            <span class="field-type">类型: {{ getTypeLabel(field.field_type) }}</span>
+            <span v-if="field.field_options" class="field-options">选项: {{ field.field_options }}</span>
+          </div>
+          <div class="mobile-field-actions">
+            <el-button size="small" type="primary" @click="openEditDialog(field)">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteField(field.id)">删除</el-button>
+          </div>
+        </div>
+        <el-empty v-if="fields.length === 0" description="暂无自定义字段" />
+      </div>
+      
+      <el-empty v-if="fields.length === 0 && !isMobile" description="暂无自定义字段" />
     </el-card>
     
     <!-- 添加字段对话框 -->
-    <el-dialog v-model="showAddDialog" title="添加自定义字段" width="500px">
-      <el-form :model="form" label-width="100px">
+    <el-dialog 
+      v-model="showAddDialog" 
+      title="添加自定义字段" 
+      :width="isMobile ? '95%' : '500px'"
+      class="mobile-dialog"
+    >
+      <el-form :model="form" :label-width="isMobile ? '80px' : '100px'" class="mobile-form">
         <el-form-item label="字段名称">
           <el-input v-model="form.field_name" placeholder="例如：供应商、规格、存放区域等" />
         </el-form-item>
@@ -86,8 +113,13 @@
     </el-dialog>
 
     <!-- 编辑字段对话框 -->
-    <el-dialog v-model="showEditDialog" title="编辑自定义字段" width="500px">
-      <el-form :model="form" label-width="100px">
+    <el-dialog 
+      v-model="showEditDialog" 
+      title="编辑自定义字段" 
+      :width="isMobile ? '95%' : '500px'"
+      class="mobile-dialog"
+    >
+      <el-form :model="form" :label-width="isMobile ? '80px' : '100px'" class="mobile-form">
         <el-form-item label="字段名称">
           <el-input v-model="form.field_name" placeholder="例如：供应商、规格、存放区域等" />
         </el-form-item>
@@ -141,6 +173,7 @@ export default {
       showAddDialog: false,
       showEditDialog: false,
       editingFieldId: null,
+      isMobile: false,
       form: {
         field_name: '',
         field_type: 'text',
@@ -151,8 +184,26 @@ export default {
   },
   mounted() {
     this.loadFields()
+    this.checkMobile()
+    window.addEventListener('resize', this.checkMobile)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.checkMobile)
   },
   methods: {
+    checkMobile() {
+      this.isMobile = window.innerWidth < 768
+    },
+    getTypeLabel(type) {
+      const labels = {
+        'text': '文本',
+        'number': '数字',
+        'date': '日期',
+        'textarea': '文本域',
+        'select': '下拉选择'
+      }
+      return labels[type] || type
+    },
     async loadFields() {
       try {
         const res = await axios.get('/api/fields')
@@ -233,5 +284,79 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 移动端卡片列表 */
+.mobile-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-field-card {
+  background: #f5f7fa;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #ebeef5;
+}
+
+.mobile-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mobile-field-header .field-name {
+  font-weight: 600;
+  color: #303133;
+  font-size: 15px;
+}
+
+.mobile-field-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.mobile-field-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-field-actions .el-button {
+  flex: 1;
+}
+
+/* 移动端对话框 */
+@media (max-width: 768px) {
+  .mobile-dialog {
+    margin: 10px !important;
+  }
+  
+  .mobile-dialog .el-dialog__body {
+    padding: 15px;
+  }
+  
+  .mobile-form .el-form-item {
+    margin-bottom: 15px;
+  }
+  
+  .mobile-form .el-form-item__label {
+    text-align: left;
+    padding-right: 0;
+  }
+  
+  .mobile-form .el-input,
+  .mobile-form .el-select {
+    width: 100% !important;
+  }
+  
+  .mobile-form .el-textarea {
+    width: 100% !important;
+  }
 }
 </style>
