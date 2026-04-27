@@ -13,11 +13,12 @@ check_and_install() {
     local cmd=$1
     local package=$2
     
-    if ! command -v "$cmd" &> /dev/null; then
-        echo "[*] $cmd 不存在，正在安装 $package..."
-        sudo apt update && sudo apt install -y "$package"
+    # 使用 dpkg 检查包是否已安装
+    if dpkg -l | grep -q "^ii  $package "; then
+        echo "[OK] $package 已安装"
     else
-        echo "[OK] $cmd 已安装"
+        echo "[*] $package 不存在，正在安装..."
+        sudo apt update && sudo apt install -y "$package"
     fi
 }
 
@@ -207,7 +208,7 @@ echo "[1/7] 检查系统依赖..."
 check_and_install git git
 check_and_install python3 python3
 check_and_install pip3 python3-pip
-check_and_install npm nodejs
+check_and_install node nodejs
 check_and_install nginx nginx
 
 echo "[2/7] 创建目录并克隆代码..."
