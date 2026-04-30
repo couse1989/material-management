@@ -175,30 +175,37 @@ export default {
 </script>
 
 <style>
-/* 物资选择下拉框样式 - 简洁风格 */
+/* 物资选择下拉框样式 - 简洁风格，自适应任何屏幕 */
 .material-option {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .material-name {
   font-size: 14px;
   color: #303133;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .material-info {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  overflow: hidden;
 }
 
 .info-item {
   font-size: 12px;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .info-item.spec {
@@ -216,11 +223,16 @@ export default {
   background: #fdf6ec;
 }
 
-/* 下拉框整体样式 */
+/* 下拉框整体样式：确保下拉框足够宽以显示内容 */
+.material-select-dropdown {
+  min-width: 280px !important;
+}
+
 .material-select-dropdown .el-select-dropdown__item {
-  padding: 8px 16px;
+  padding: 6px 12px;
   height: auto;
   line-height: 1.5;
+  white-space: normal;
 }
 
 .material-select-dropdown .el-select-dropdown__item.selected .material-name {
