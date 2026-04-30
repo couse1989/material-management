@@ -51,8 +51,8 @@
         </div>
       </div>
 
-      <!-- 桌面端表格 -->
-      <div v-if="!isMobile" class="desktop-toolbar">
+      <!-- 工具栏 -->
+      <div class="responsive-toolbar">
         <div class="toolbar-left">
           <el-button @click="showColumnSettings = true">列设置</el-button>
           <el-button @click="batchDelete" :disabled="selectedIds.length === 0">
@@ -73,7 +73,6 @@
       </div>
 
       <el-table
-        v-if="!isMobile"
         ref="inventoryTable"
         :data="displayedMaterials"
         style="width: 100%"
@@ -128,7 +127,7 @@
       </el-table>
 
       <!-- 移动端卡片列表 -->
-      <div v-else class="mobile-card-list">
+      <div class="mobile-card-list">
         <!-- 移动端工具栏 -->
         <div class="mobile-toolbar">
           <el-button size="small" @click="exportExcel" class="mobile-tool-btn">📤 导出</el-button>
@@ -260,11 +259,11 @@
     <el-dialog 
       v-model="showAddDialog" 
       :title="isEditing ? '编辑物资' : '添加物资'" 
-      :width="isMobile ? '95%' : '600px'"
+      width="600px"
       :close-on-click-modal="false"
-      class="mobile-dialog"
+      class="responsive-dialog"
     >
-      <el-form :model="form" :label-width="isMobile ? '80px' : '100px'" class="mobile-form">
+      <el-form :model="form" label-width="100px" class="responsive-form">
         <el-form-item
           v-for="field in customFields"
           :key="field.id"
@@ -341,8 +340,8 @@
       </template>
     </el-dialog>
     
-    <!-- 移动端浮动添加按钮 -->
-    <div v-if="isMobile" class="mobile-fab" @click="showAddDialog = true">
+    <!-- 浮动添加按钮（移动端显示） -->
+    <div class="responsive-fab" @click="showAddDialog = true">
       <el-icon><Plus /></el-icon>
     </div>
   </div>
@@ -379,8 +378,6 @@ export default {
       // 分页相关
       currentPage: 1,
       pageSize: 25,
-      // 移动端相关
-      isMobile: false,
       selectedCategory: '全部',
       categoryList: ['全部'],
       form: {
@@ -463,23 +460,13 @@ export default {
     }
   },
   mounted() {
-    this.checkMobile()
-    window.addEventListener('resize', this.checkMobile)
     this.loadColumnSettings()
     this.loadCustomFields()
     this.loadMaterials()
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.checkMobile)
   },
   methods: {
-    // 移动端检测
-    checkMobile() {
-      this.isMobile = window.innerWidth < 768
-      if (this.isMobile) {
-        this.pageSize = 20
-      }
-    },
     // 获取物资名称
     getMaterialName(material) {
       if (!material || !material.custom_fields) return ''
