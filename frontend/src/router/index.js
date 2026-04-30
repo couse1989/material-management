@@ -1,22 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Login from '../views/Login.vue'
-import Inventory from '../views/Inventory.vue'
-import Inbound from '../views/Inbound.vue'
-import Outbound from '../views/Outbound.vue'
-import FieldManagement from '../views/FieldManagement.vue'
-import Logs from '../views/Logs.vue'
-import Backup from '../views/Backup.vue'
-import UserManagement from '../views/UserManagement.vue'
 
 const routes = [
-  { path: '/login', component: Login },
-  { path: '/', component: Inventory },
-  { path: '/inbound', component: Inbound },
-  { path: '/outbound', component: Outbound },
-  { path: '/fields', component: FieldManagement },
-  { path: '/logs', component: Logs },
-  { path: '/backup', component: Backup },
-  { path: '/users', component: UserManagement }
+  { path: '/login', component: () => import('../views/Login.vue') },
+  { path: '/', component: () => import('../views/Inventory.vue') },
+  { path: '/inbound', component: () => import('../views/Inbound.vue') },
+  { path: '/outbound', component: () => import('../views/Outbound.vue') },
+  { path: '/fields', component: () => import('../views/FieldManagement.vue') },
+  { path: '/logs', component: () => import('../views/Logs.vue') },
+  { path: '/backup', component: () => import('../views/Backup.vue') },
+  { path: '/users', component: () => import('../views/UserManagement.vue') }
 ]
 
 const router = createRouter({

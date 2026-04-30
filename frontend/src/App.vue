@@ -20,10 +20,10 @@
           <el-menu-item style="float: right;" @click="handleLogout" index="logout">
             <el-icon style="margin-right: 4px;"><SwitchButton /></el-icon>注销
           </el-menu-item>
-          <el-submenu style="float: right;" index="user-menu">
+          <el-sub-menu style="float: right;" index="user-menu">
             <template #title>{{ currentUser }}</template>
             <el-menu-item index="change-password" @click="showChangePasswordDialog = true">修改密码</el-menu-item>
-          </el-submenu>
+          </el-sub-menu>
         </el-menu>
       </el-header>
       <el-main>
@@ -54,10 +54,15 @@
 <script>
 import axios from 'axios'
 import { SwitchButton } from '@element-plus/icons-vue'
+import { useAuth } from './store/auth'
 
 export default {
   name: 'App',
   components: { SwitchButton },
+  setup() {
+    const { isAuthenticated, isAdmin, currentUser, setUser, clearUser, updateUser } = useAuth()
+    return { isAuthenticated, isAdmin, currentUser, setUser, clearUser, updateUser }
+  },
   data() {
     return {
       showChangePasswordDialog: false,
@@ -70,17 +75,6 @@ export default {
   computed: {
     activeIndex() {
       return this.$route.path
-    },
-    isAuthenticated() {
-      return localStorage.getItem('user') !== null
-    },
-    isAdmin() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
-      return user.is_admin === 1 || user.is_admin === true
-    },
-    currentUser() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
-      return user.username || ''
     }
   },
   async mounted() {
@@ -89,12 +83,12 @@ export default {
       try {
         const res = await axios.get('/api/check-auth')
         if (res.data.authenticated) {
-          localStorage.setItem('user', JSON.stringify({
+          this.updateUser({
             username: res.data.username,
             is_admin: res.data.is_admin
-          }))
+          })
         } else {
-          localStorage.removeItem('user')
+          this.clearUser()
         }
       } catch (e) {
         // 忽略同步失败
@@ -104,7 +98,7 @@ export default {
   methods: {
     async handleLogout() {
       await axios.post('/api/logout')
-      localStorage.removeItem('user')
+      this.clearUser()
       this.$router.push('/login')
     },
     async changePassword() {

@@ -28,9 +28,14 @@
 
 <script>
 import axios from 'axios'
+import { useAuth } from '../store/auth'
 
 export default {
   name: 'Login',
+  setup() {
+    const { setUser } = useAuth()
+    return { setUser }
+  },
   data() {
     return {
       form: {
@@ -49,10 +54,10 @@ export default {
       
       try {
         const res = await axios.post('/api/login', this.form)
-        localStorage.setItem('user', JSON.stringify({
+        this.setUser({
           username: res.data.username,
           is_admin: res.data.is_admin
-        }))
+        })
         this.$message.success('登录成功')
         this.$router.push('/')
       } catch (error) {
