@@ -9,9 +9,13 @@
         <el-form-item label="选择物资">
           <el-select 
             v-model="form.material_id" 
-            filterable 
-            placeholder="请选择物资"
+            filterable
+            remote
+            :remote-method="remoteSearchMaterials"
+            :loading="loadingMaterials"
+            placeholder="请输入关键词搜索物资"
             popper-class="material-select-dropdown"
+            @focus="handleSelectFocus"
           >
             <el-option
               v-for="item in materials"
@@ -75,6 +79,7 @@ export default {
     return {
       materials: [],
       storageAreas: [],
+      loadingMaterials: false,
       form: {
         material_id: null,
         quantity: 1,
@@ -85,14 +90,18 @@ export default {
     }
   },
   mounted() {
-    this.loadMaterials()
     this.setCurrentUser()
     this.loadStorageAreas()
   },
   methods: {
-    async loadMaterials() {
+    async remoteSearchMaterials(query) {
+      if (query === '') {
+        this.materials = []
+        return
+      }
+      this.loadingMaterials = true
       try {
-        const res = await axios.get('/api/materials')
+        const res = await axios.get(`/api/materials?search=${encodeURIComponent(query)}`)
         this.materials = res.data.map(item => {
           if (item.custom_fields && typeof item.custom_fields === 'string') {
             try {
@@ -104,7 +113,34 @@ export default {
           return item
         })
       } catch (error) {
-        this.$message.error('加载物资失败')
+        this.$message.error('搜索物资失败')
+      } finally {
+        this.loadingMaterials = false
+      }
+    },
+    handleSelectFocus() {
+      if (this.form.material_id) {
+        const selected = this.materials.find(m => m.id === this.form.material_id)
+        if (!selected) {
+          this.loadSelectedMaterial()
+        }
+      }
+    },
+    async loadSelectedMaterial() {
+      if (!this.form.material_id) return
+      try {
+        const res = await axios.get(`/api/materials?id=${this.form.material_id}`)
+        if (res.data && res.data.length > 0) {
+          let item = res.data[0]
+          if (item.custom_fields && typeof item.custom_fields === 'string') {
+            try {
+              item.custom_fields = JSON.parse(item.custom_fields)
+            } catch (e) {}
+          }
+          this.materials = [item]
+        }
+      } catch (error) {
+        console.error('加载已选物资失败:', error)
       }
     },
     async loadStorageAreas() {

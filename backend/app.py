@@ -415,9 +415,24 @@ def update_field(field_id):
 @app.route('/api/materials', methods=['GET'])
 @login_required
 def get_materials():
+    material_id = request.args.get('id', '')
     search = request.args.get('search', '')
     
     conn = get_db()
+    
+    # 按 ID 查询单个物资
+    if material_id:
+        material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
+        if material:
+            m = dict(material)
+            if m['custom_fields']:
+                m['custom_fields'] = json.loads(m['custom_fields'])
+            else:
+                m['custom_fields'] = {}
+            conn.close()
+            return jsonify([m])
+        conn.close()
+        return jsonify([])
     
     if search:
         # 搜索功能：在 custom_fields 中搜索
@@ -443,7 +458,8 @@ def get_materials():
             if match:
                 result.append(m)
     else:
-        materials = conn.execute('SELECT * FROM materials ORDER BY created_at DESC').fetchall()
+        # 没有搜索条件时，只返回最近 50 条（避免一次加载全部）
+        materials = conn.execute('SELECT * FROM materials ORDER BY created_at DESC LIMIT 50').fetchall()
         result = []
         for material in materials:
             m = dict(material)
