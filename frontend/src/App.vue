@@ -132,4 +132,33 @@ body {
 .el-main {
   padding: 20px;
 }
+
+/* 菜单响应式 */
+.el-menu--horizontal {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.el-menu--horizontal > .el-menu-item {
+  float: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.el-menu--horizontal > .el-submenu {
+  float: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 移动端菜单优化 */
+@media (max-width: 768px) {
+  .el-menu--horizontal > .el-menu-item,
+  .el-menu--horizontal > .el-submenu {
+    height: 50px;
+    line-height: 50px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+}
 </style>

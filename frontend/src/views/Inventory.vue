@@ -54,21 +54,35 @@
       <!-- 工具栏 -->
       <div class="responsive-toolbar">
         <div class="toolbar-left">
-          <el-button @click="showColumnSettings = true">列设置</el-button>
+          <el-button @click="showColumnSettings = true">
+            <el-icon><Setting /></el-icon>
+            <span class="btn-text">列设置</span>
+          </el-button>
           <el-button @click="batchDelete" :disabled="selectedIds.length === 0">
-            批量删除 ({{ selectedIds.length }})
+            <el-icon><Delete /></el-icon>
+            <span class="btn-text">批量删除 ({{ selectedIds.length }})</span>
           </el-button>
         </div>
         <div class="toolbar-right">
-          <el-button @click="exportExcel">导出Excel</el-button>
+          <el-button @click="exportExcel">
+            <el-icon><Download /></el-icon>
+            <span class="btn-text">导出</span>
+          </el-button>
           <el-upload
             :auto-upload="false"
             :show-file-list="false"
             :on-change="handleImportChange"
             accept=".xlsx,.xls"
           >
-            <el-button>导入Excel</el-button>
+            <el-button>
+              <el-icon><Upload /></el-icon>
+              <span class="btn-text">导入</span>
+            </el-button>
           </el-upload>
+          <el-button @click="showLogDialog = true">
+            <el-icon><Document /></el-icon>
+            <span class="btn-text">日志</span>
+          </el-button>
         </div>
       </div>
 
@@ -128,19 +142,6 @@
 
       <!-- 移动端卡片列表 -->
       <div class="mobile-card-list">
-        <!-- 移动端工具栏 -->
-        <div class="mobile-toolbar">
-          <el-button size="small" @click="exportExcel" class="mobile-tool-btn">📤 导出</el-button>
-          <el-upload
-            :auto-upload="false"
-            :show-file-list="false"
-            :on-change="handleImportChange"
-            accept=".xlsx,.xls"
-          >
-            <el-button size="small" class="mobile-tool-btn">📥 导入</el-button>
-          </el-upload>
-          <el-button size="small" @click="showLogDialog = true" class="mobile-tool-btn">📋 日志</el-button>
-        </div>
 
         <div
           v-for="item in displayedMaterials"
@@ -349,13 +350,12 @@
 
 <script>
 import axios from 'axios'
-import { Search, Setting, Rank, Plus } from '@element-plus/icons-vue'
+import { Search, Setting, Rank, Plus, Delete, Download, Upload, Document } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
 export default {
   name: 'Inventory',
-  components: { Search, Setting, Rank, draggable },
-  data() {
+  components: { Search, Setting, Rank, draggable, Plus, Delete, Download, Upload, Document },  data() {
     return {
       materials: [],
       customFields: [],
