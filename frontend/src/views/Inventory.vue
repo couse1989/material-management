@@ -219,35 +219,124 @@
     </el-dialog>
 
     <!-- 操作日志对话框 -->
-    <el-dialog v-model="showLogDialog" title="📋 操作日志" width="90%" max-width="800px">
+    <el-dialog v-model="showLogDialog" title="📋 操作日志" width="90%" max-width="800px" class="log-dialog">
       <el-tabs>
         <el-tab-pane label="操作日志">
-          <el-table :data="operationLogs" max-height="400" stripe>
-            <el-table-column prop="created_at" label="时间" width="160"></el-table-column>
-            <el-table-column prop="operation_type" label="操作" width="80">
+          <!-- 桌面端：表格 -->
+          <el-table :data="operationLogs" max-height="400" stripe class="desktop-log-table">
+            <el-table-column prop="created_at" label="时间" width="160">
               <template #default="scope">
-                <el-tag :type="getOperationTypeTag(scope.row.operation_type)">
+                <span class="log-time">{{ scope.row.created_at }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="operation_type" label="操作" width="90" align="center">
+              <template #default="scope">
+                <el-tag :type="getOperationTypeTag(scope.row.operation_type)" size="small" effect="dark">
                   {{ scope.row.operation_type }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="material_name" label="物资名称"></el-table-column>
-            <el-table-column prop="operator" label="操作人" width="100"></el-table-column>
-            <el-table-column prop="remark" label="备注"></el-table-column>
+            <el-table-column prop="material_name" label="物资名称">
+              <template #default="scope">
+                <span class="log-material-name">{{ scope.row.material_name }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="quantity_change" label="数量变化" width="90" align="center">
+              <template #default="scope">
+                <span :class="getQuantityChangeClass(scope.row.operation_type, scope.row.quantity_change)">
+                  {{ getQuantityChangeText(scope.row.operation_type, scope.row.quantity_change) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="operator" label="操作人" width="100">
+              <template #default="scope">
+                <span class="log-operator">{{ scope.row.operator }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注">
+              <template #default="scope">
+                <span class="log-remark">{{ scope.row.remark || '-' }}</span>
+              </template>
+            </el-table-column>
           </el-table>
+          <!-- 移动端：卡片列表 -->
+          <div class="mobile-log-list">
+            <div v-for="log in operationLogs" :key="log.id" class="log-card">
+              <div class="log-card-header">
+                <el-tag :type="getOperationTypeTag(log.operation_type)" size="small" effect="dark">
+                  {{ log.operation_type }}
+                </el-tag>
+                <span class="log-card-time">{{ log.created_at }}</span>
+              </div>
+              <div class="log-card-body">
+                <div class="log-card-row">
+                  <span class="log-card-label">物资：</span>
+                  <span class="log-material-name">{{ log.material_name }}</span>
+                </div>
+                <div class="log-card-row">
+                  <span class="log-card-label">操作人：</span>
+                  <span class="log-operator">{{ log.operator }}</span>
+                </div>
+                <div v-if="log.quantity_change" class="log-card-row">
+                  <span class="log-card-label">数量：</span>
+                  <span :class="getQuantityChangeClass(log.operation_type, log.quantity_change)">
+                    {{ getQuantityChangeText(log.operation_type, log.quantity_change) }}
+                  </span>
+                </div>
+                <div v-if="log.remark" class="log-card-row">
+                  <span class="log-card-label">备注：</span>
+                  <span class="log-remark">{{ log.remark }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="operationLogs.length === 0" class="log-empty">暂无操作日志</div>
+          </div>
         </el-tab-pane>
         <el-tab-pane label="登录日志">
-          <el-table :data="loginLogs" max-height="400" stripe>
-            <el-table-column prop="login_time" label="时间" width="160"></el-table-column>
+          <!-- 桌面端：表格 -->
+          <el-table :data="loginLogs" max-height="400" stripe class="desktop-log-table">
+            <el-table-column prop="login_time" label="时间" width="160">
+              <template #default="scope">
+                <span class="log-time">{{ scope.row.login_time }}</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="username" label="用户名">
               <template #default="scope">
-                <span :class="{ 'login-failed': scope.row.username.includes('[失败]') }">
+                <span :class="scope.row.username.includes('[失败]') ? 'login-failed' : 'log-operator'">
                   {{ scope.row.username }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="ip_address" label="IP地址" width="140"></el-table-column>
+            <el-table-column prop="ip_address" label="IP地址" width="140">
+              <template #default="scope">
+                <span class="log-ip">{{ scope.row.ip_address }}</span>
+              </template>
+            </el-table-column>
           </el-table>
+          <!-- 移动端：卡片列表 -->
+          <div class="mobile-log-list">
+            <div v-for="log in loginLogs" :key="log.id" class="log-card">
+              <div class="log-card-header">
+                <span :class="log.username.includes('[失败]') ? 'login-failed' : 'log-login-success'">
+                  {{ log.username.includes('[失败]') ? '失败' : '成功' }}
+                </span>
+                <span class="log-card-time">{{ log.login_time }}</span>
+              </div>
+              <div class="log-card-body">
+                <div class="log-card-row">
+                  <span class="log-card-label">用户：</span>
+                  <span :class="log.username.includes('[失败]') ? 'login-failed' : 'log-operator'">
+                    {{ log.username.replace(' [失败]', '') }}
+                  </span>
+                </div>
+                <div class="log-card-row">
+                  <span class="log-card-label">IP：</span>
+                  <span class="log-ip">{{ log.ip_address }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="loginLogs.length === 0" class="log-empty">暂无登录日志</div>
+          </div>
         </el-tab-pane>
       </el-tabs>
       <template #footer>
@@ -755,10 +844,23 @@ export default {
         '添加': 'success',
         '编辑': 'warning',
         '删除': 'danger',
-        '入库': 'primary',
-        '出库': 'info'
+        '入库': '',        // 绿色（el-tag 默认）
+        '出库': 'info',
+        '导入': 'warning'
       }
-      return map[type] || 'info'
+      return map[type] !== undefined ? (map[type] || 'success') : 'info'
+    },
+    getQuantityChangeClass(opType, qty) {
+      if (opType === '出库' && qty) return 'qty-decrease'
+      if (opType === '入库' && qty) return 'qty-increase'
+      if (opType === '添加' || opType === '编辑') return 'qty-neutral'
+      return ''
+    },
+    getQuantityChangeText(opType, qty) {
+      if (!qty || qty === 0) return '-'
+      if (opType === '出库') return `-${qty}`
+      if (opType === '入库') return `+${qty}`
+      return `${qty}`
     }
   },
   watch: {
@@ -1077,6 +1179,136 @@ export default {
 /* 登录失败样式 */
 .login-failed {
   color: #f56c6c;
+}
+
+/* 日志字体颜色美化 */
+.log-time {
+  color: #909399;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+.log-material-name {
+  color: #303133;
+  font-weight: 500;
+}
+
+.log-operator {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.log-remark {
+  color: #606266;
+  font-size: 13px;
+}
+
+.log-ip {
+  color: #909399;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  font-size: 13px;
+}
+
+.log-login-success {
+  color: #67c23a;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* 数量变化颜色 */
+.qty-increase {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.qty-decrease {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
+.qty-neutral {
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+/* 操作日志卡片 - 移动端 */
+.mobile-log-list {
+  display: none;
+  padding: 8px;
+}
+
+.log-card {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #ebeef5;
+}
+
+.log-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.log-card-time {
+  color: #909399;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+.log-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-card-row {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.log-card-label {
+  color: #909399;
+}
+
+.log-empty {
+  text-align: center;
+  color: #c0c4cc;
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+.desktop-log-table {
+  display: table;
+}
+
+/* 移动端：隐藏桌面表格，显示卡片 */
+@media (max-width: 768px) {
+  .desktop-log-table {
+    display: none !important;
+  }
+  .mobile-log-list {
+    display: block !important;
+  }
+  .log-dialog .el-dialog {
+    width: 95% !important;
+    margin: 10px auto !important;
+  }
+  .log-dialog .el-dialog__body {
+    padding: 10px !important;
+  }
+}
+
+/* 桌面端：显示表格，隐藏卡片 */
+@media (min-width: 769px) {
+  .mobile-log-list {
+    display: none !important;
+  }
+  .desktop-log-table {
+    display: table;
+  }
 }
 
 .responsive-fab:active {
