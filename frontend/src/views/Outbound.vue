@@ -147,7 +147,7 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 /* 物资选择下拉框样式 */
 .material-option {
   padding: 8px 4px;
