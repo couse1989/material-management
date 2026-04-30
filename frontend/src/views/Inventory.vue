@@ -851,15 +851,15 @@ export default {
       return map[type] !== undefined ? (map[type] || 'success') : 'info'
     },
     getQuantityChangeClass(opType, qty) {
-      if (opType === '出库' && qty) return 'qty-decrease'
-      if (opType === '入库' && qty) return 'qty-increase'
-      if (opType === '添加' || opType === '编辑') return 'qty-neutral'
+      if (opType === '出库' && qty) { return 'qty-decrease' }
+      if (opType === '入库' && qty) { return 'qty-increase' }
+      if (opType === '添加' || opType === '编辑') { return 'qty-neutral' }
       return ''
     },
     getQuantityChangeText(opType, qty) {
-      if (!qty || qty === 0) return '-'
-      if (opType === '出库') return `-${qty}`
-      if (opType === '入库') return `+${qty}`
+      if (!qty || qty === 0) { return '-' }
+      if (opType === '出库') { return `-${qty}` }
+      if (opType === '入库') { return `+${qty}` }
       return `${qty}`
     }
   },
@@ -873,7 +873,7 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 .card-header {
   display: flex;
   justify-content: space-between;
