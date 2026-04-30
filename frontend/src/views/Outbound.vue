@@ -116,8 +116,10 @@ export default {
     },
     getCustomFieldValue(item, fieldName) {
       if (item.custom_fields && item.custom_fields[fieldName]) {
+        console.log(`getCustomFieldValue: ${fieldName}=`, item.custom_fields[fieldName])
         return item.custom_fields[fieldName]
       }
+      console.log(`getCustomFieldValue: ${fieldName} not found in`, item.custom_fields)
       return ''
     },
     async submitOutbound() {
@@ -148,92 +150,55 @@ export default {
 </script>
 
 <style>
-/* 物资选择下拉框样式 */
+/* 物资选择下拉框样式 - 简洁风格 */
 .material-option {
-  padding: 8px 4px;
-}
-
-.material-option-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  padding: 4px 0;
 }
 
 .material-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
   color: #303133;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-}
-
-.material-quantity {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 4px 12px;
-  border-radius: 20px;
-  color: white;
-  font-size: 13px;
-}
-
-.quantity-number {
-  font-size: 18px;
-  font-weight: 700;
-  font-family: 'DIN Alternate', 'Roboto', sans-serif;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.quantity-label {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.material-option-details {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.detail-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 12px;
   font-weight: 500;
 }
 
-.spec-tag {
-  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
-  color: #006064;
-  border: 1px solid #80deea;
+.material-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.area-tag {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  color: #e65100;
-  border: 1px solid #ffcc80;
+.info-item {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.detail-icon {
-  font-size: 14px;
+.info-item.spec {
+  color: #409eff;
+  background: #ecf5ff;
+}
+
+.info-item.area {
+  color: #67c23a;
+  background: #f0f9eb;
+}
+
+.info-item.quantity {
+  color: #e6a23c;
+  background: #fdf6ec;
 }
 
 /* 下拉框整体样式 */
-:deep(.material-select-dropdown) {
-  .el-select-dropdown__item {
-    padding: 8px 20px;
-    height: auto;
-    line-height: 1.5;
-  }
-  
-  .el-select-dropdown__item.selected {
-    .material-name {
-      color: #409eff;
-    }
-  }
+.material-select-dropdown .el-select-dropdown__item {
+  padding: 8px 16px;
+  height: auto;
+  line-height: 1.5;
+}
+
+.material-select-dropdown .el-select-dropdown__item.selected .material-name {
+  color: #409eff;
 }
 </style>
