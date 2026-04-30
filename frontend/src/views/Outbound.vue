@@ -7,13 +7,31 @@
       
       <el-form :model="form" label-width="100px" style="max-width: 500px;">
         <el-form-item label="选择物资">
-          <el-select v-model="form.material_id" filterable placeholder="请选择物资">
+          <el-select 
+            v-model="form.material_id" 
+            filterable 
+            placeholder="请选择物资"
+            popper-class="material-select-dropdown"
+          >
             <el-option
               v-for="item in materials"
               :key="item.id"
               :label="`${getMaterialName(item)} - 当前库存: ${getMaterialQuantity(item)}`"
               :value="item.id"
-            />
+            >
+              <div class="material-option">
+                <span class="material-name">{{ getMaterialName(item) }}</span>
+                <span class="material-info">
+                  <span v-if="getCustomFieldValue(item, '规格型号')" class="info-item spec">
+                    {{ getCustomFieldValue(item, '规格型号') }}
+                  </span>
+                  <span v-if="getCustomFieldValue(item, '存放区域')" class="info-item area">
+                    {{ getCustomFieldValue(item, '存放区域') }}
+                  </span>
+                  <span class="info-item quantity">库存: {{ getMaterialQuantity(item) }}</span>
+                </span>
+              </div>
+            </el-option>
           </el-select>
         </el-form-item>
         
@@ -75,7 +93,16 @@ export default {
     async loadMaterials() {
       try {
         const res = await axios.get('/api/materials')
-        this.materials = res.data
+        this.materials = res.data.map(item => {
+          if (item.custom_fields && typeof item.custom_fields === 'string') {
+            try {
+              item.custom_fields = JSON.parse(item.custom_fields)
+            } catch (e) {
+              console.error('解析 custom_fields 失败:', e)
+            }
+          }
+          return item
+        })
       } catch (error) {
         this.$message.error('加载物资失败')
       }
@@ -116,10 +143,8 @@ export default {
     },
     getCustomFieldValue(item, fieldName) {
       if (item.custom_fields && item.custom_fields[fieldName]) {
-        console.log(`getCustomFieldValue: ${fieldName}=`, item.custom_fields[fieldName])
         return item.custom_fields[fieldName]
       }
-      console.log(`getCustomFieldValue: ${fieldName} not found in`, item.custom_fields)
       return ''
     },
     async submitOutbound() {

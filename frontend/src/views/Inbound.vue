@@ -93,7 +93,16 @@ export default {
     async loadMaterials() {
       try {
         const res = await axios.get('/api/materials')
-        this.materials = res.data
+        this.materials = res.data.map(item => {
+          if (item.custom_fields && typeof item.custom_fields === 'string') {
+            try {
+              item.custom_fields = JSON.parse(item.custom_fields)
+            } catch (e) {
+              console.error('解析 custom_fields 失败:', e)
+            }
+          }
+          return item
+        })
       } catch (error) {
         this.$message.error('加载物资失败')
       }
@@ -134,10 +143,8 @@ export default {
     },
     getCustomFieldValue(item, fieldName) {
       if (item.custom_fields && item.custom_fields[fieldName]) {
-        console.log(`getCustomFieldValue: ${fieldName}=`, item.custom_fields[fieldName])
         return item.custom_fields[fieldName]
       }
-      console.log(`getCustomFieldValue: ${fieldName} not found in`, item.custom_fields)
       return ''
     },
     async submitInbound() {
