@@ -23,10 +23,10 @@
                 <span class="material-name">{{ getMaterialName(item) }}</span>
                 <span class="material-info">
                   <span v-if="getCustomFieldValue(item, '规格型号')" class="info-item spec">
-                    {{ getCustomFieldValue(item, '规格型号') }}
+                    规格型号: {{ getCustomFieldValue(item, '规格型号') }}
                   </span>
                   <span v-if="getCustomFieldValue(item, '存放区域')" class="info-item area">
-                    {{ getCustomFieldValue(item, '存放区域') }}
+                    存放区域: {{ getCustomFieldValue(item, '存放区域') }}
                   </span>
                   <span class="info-item quantity">库存: {{ getMaterialQuantity(item) }}</span>
                 </span>
