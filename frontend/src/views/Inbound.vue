@@ -7,13 +7,38 @@
       
       <el-form :model="form" label-width="100px" style="max-width: 500px;">
         <el-form-item label="选择物资">
-          <el-select v-model="form.material_id" filterable placeholder="请选择物资">
+          <el-select 
+            v-model="form.material_id" 
+            filterable 
+            placeholder="请选择物资"
+            popper-class="material-select-dropdown"
+          >
             <el-option
               v-for="item in materials"
               :key="item.id"
-              :label="`${getMaterialName(item)} - 当前库存: ${getMaterialQuantity(item)}`"
+              :label="`${getMaterialName(item)} - 库存: ${getMaterialQuantity(item)}`"
               :value="item.id"
-            />
+            >
+              <div class="material-option">
+                <div class="material-option-header">
+                  <span class="material-name">{{ getMaterialName(item) }}</span>
+                  <span class="material-quantity">
+                    <span class="quantity-number">{{ getMaterialQuantity(item) }}</span>
+                    <span class="quantity-label">库存</span>
+                  </span>
+                </div>
+                <div class="material-option-details">
+                  <span v-if="getCustomFieldValue(item, '规格型号')" class="detail-tag spec-tag">
+                    <span class="detail-icon">📏</span>
+                    {{ getCustomFieldValue(item, '规格型号') }}
+                  </span>
+                  <span v-if="getCustomFieldValue(item, '存放区域')" class="detail-tag area-tag">
+                    <span class="detail-icon">📍</span>
+                    {{ getCustomFieldValue(item, '存放区域') }}
+                  </span>
+                </div>
+              </div>
+            </el-option>
           </el-select>
         </el-form-item>
         
@@ -114,6 +139,12 @@ export default {
       }
       return '0'
     },
+    getCustomFieldValue(item, fieldName) {
+      if (item.custom_fields && item.custom_fields[fieldName]) {
+        return item.custom_fields[fieldName]
+      }
+      return ''
+    },
     async submitInbound() {
       if (!this.form.material_id || !this.form.quantity) {
         this.$message.error('请选择物资并输入数量')
@@ -140,3 +171,94 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* 物资选择下拉框样式 */
+.material-option {
+  padding: 8px 4px;
+}
+
+.material-option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.material-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.material-quantity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 13px;
+}
+
+.quantity-number {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'DIN Alternate', 'Roboto', sans-serif;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.quantity-label {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.material-option-details {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.spec-tag {
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  color: #006064;
+  border: 1px solid #80deea;
+}
+
+.area-tag {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+.detail-icon {
+  font-size: 14px;
+}
+
+/* 下拉框整体样式 */
+:deep(.material-select-dropdown) {
+  .el-select-dropdown__item {
+    padding: 8px 20px;
+    height: auto;
+    line-height: 1.5;
+  }
+  
+  .el-select-dropdown__item.selected {
+    .material-name {
+      color: #409eff;
+    }
+  }
+}
+</style>
