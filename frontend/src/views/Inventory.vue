@@ -5,11 +5,11 @@
         <div class="card-header">
           <span class="header-title">📦 库存管理</span>
           <div class="header-actions">
-            <el-button type="primary" @click="showAddDialog = true" class="mobile-add-btn">➕ 添加</el-button>
+            <el-button type="primary" @click="showAddDialog = true" class="responsive-add-btn">➕ 添加</el-button>
           </div>
         </div>
         <!-- 搜索栏 -->
-        <div class="mobile-search">
+        <div class="responsive-search">
           <el-input
             v-model="searchKeyword"
             placeholder="搜索物资..."
@@ -911,10 +911,42 @@ export default {
 
   .stat-label {
     font-size: 12px;
+    color: #909  }
+
+  .stat-label {
+    font-size: 12px;
     color: #909399;
     margin-top: 4px;
   }
-
+  
+  /* 响应式搜索栏 */
+  .responsive-search {
+    margin-bottom: 15px;
+  }
+  
+  /* 响应式筛选 */
+  .responsive-filter {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  /* 响应式统计卡片 */
+  .responsive-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-radius: 8px;
+  }
+  
+  /* 响应式添加按钮 */
+  .responsive-add-btn {
+    display: inline-flex;
+  }
+  
   /* 移动端工具栏 */
   .mobile-toolbar {
     display: flex;
@@ -1043,62 +1075,96 @@ export default {
   color: #f56c6c;
 }
 
-/* 移动端浮动添加按钮 */
-.mobile-fab {
-  display: none;
-  position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #409EFF, #66b1ff);
-  color: white;
-  font-size: 28px;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
-  cursor: pointer;
-  z-index: 1000;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.mobile-fab:active {
+.responsive-fab:active {
   transform: scale(0.95);
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
 }
 
+/* 桌面端：显示表格，隐藏移动端卡片列表 */
+@media (min-width: 769px) {
+  .mobile-card-list,
+  .mobile-toolbar,
+  .responsive-fab {
+    display: none !important;
+  }
+  
+  .el-table,
+  .responsive-toolbar {
+    display: flex !important;
+  }
+  
+  /* 桌面端：搜索栏、筛选、统计信息横向布局 */
+  .responsive-search,
+  .responsive-filter,
+  .responsive-stats {
+    display: flex !important;
+  }
+}
+
+/* 移动端：显示卡片列表，隐藏表格 */
 @media (max-width: 768px) {
-  .mobile-fab {
-    display: flex;
+  .el-table,
+  .desktop-search {
+    display: none !important;
+  }
+  
+  .mobile-card-list {
+    display: block !important;
+  }
+  
+  .responsive-fab {
+    display: flex !important;
+  }
+  
+  /* 移动端：搜索栏、筛选、统计信息纵向布局 */
+  .responsive-search,
+  .responsive-filter,
+  .responsive-stats {
+    display: block !important;
+    margin-bottom: 10px;
+  }
+  
+  .responsive-toolbar {
+    flex-direction: column;
+  }
+  
+  .responsive-toolbar .toolbar-left,
+  .responsive-toolbar .toolbar-right {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .responsive-toolbar .toolbar-btn {
+    flex: 1;
+    justify-content: center;
   }
   
   /* 移动端对话框优化 */
-  .mobile-dialog {
+  .responsive-dialog {
     margin: 10px !important;
   }
   
-  .mobile-dialog .el-dialog__body {
+  .responsive-dialog .el-dialog__body {
     padding: 15px;
   }
   
-  .mobile-form .el-form-item {
+  .responsive-form .el-form-item {
     margin-bottom: 15px;
   }
   
-  .mobile-form .el-form-item__label {
+  .responsive-form .el-form-item__label {
     text-align: left;
     padding-right: 0;
   }
   
-  .mobile-form .el-input,
-  .mobile-form .el-select,
-  .mobile-form .el-input-number,
-  .mobile-form .el-date-editor {
+  .responsive-form .el-input,
+  .responsive-form .el-select,
+  .responsive-form .el-input-number,
+  .responsive-form .el-date-editor {
     width: 100% !important;
   }
   
-  .mobile-form .el-textarea {
+  .responsive-form .el-textarea {
     width: 100% !important;
   }
 }
