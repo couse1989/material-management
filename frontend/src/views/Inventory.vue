@@ -54,7 +54,7 @@
       <!-- 工具栏 -->
       <div class="responsive-toolbar">
         <div class="toolbar-left">
-          <el-button @click="showColumnSettings = true">
+          <el-button @click="openColumnSettings">
             <el-icon><Setting /></el-icon>
             <span class="btn-text">列设置</span>
           </el-button>
@@ -514,6 +514,10 @@ export default {
       localStorage.setItem('inventoryColumnSettings', JSON.stringify(settings))
     },
     openColumnSettings() {
+      if (!this.customFields || this.customFields.length === 0) {
+        this.$message.warning('暂无自定义字段，请先在字段管理中添加')
+        return
+      }
       this.tempFields = this.customFields.map(f => ({ ...f }))
       this.tempVisibility = { ...this.fieldVisibility }
       // 新字段默认显示
