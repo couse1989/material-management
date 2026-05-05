@@ -4,7 +4,7 @@
 # 使用 systemd + nginx 管理服务
 # 支持命令: ./deploy.sh [deploy|update]
 
-set -e
+# 不在开头设置 set -e，改由关键步骤自行处理错误
 
 # 颜色定义
 RED='\033[0;31m'
@@ -294,6 +294,30 @@ with app.app_context():
     print_success "后端部署完成"
 }
 
+# 检查系统内存和 swap
+check_memory() {
+    local total_mem_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    local total_mem_mb=$((total_mem_kb / 1024))
+    local swap_kb=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+    local swap_mb=$((swap_kb / 1024))
+    
+    print_info "系统内存: ${total_mem_mb}MB, Swap: ${swap_mb}MB"
+    
+    if [ "$total_mem_mb" -lt 1024 ]; then
+        print_warning "系统内存小于 1GB，前端构建可能失败"
+        if [ "$swap_mb" -lt 1024 ]; then
+            print_warning "建议添加至少 1GB swap:"
+            echo "  sudo fallocate -l 1G /swapfile"
+            echo "  sudo chmod 600 /swapfile"
+            echo "  sudo mkswap /swapfile"
+            echo "  sudo swapon /swapfile"
+            echo "  # 永久生效: echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab"
+        fi
+        return 1
+    fi
+    return 0
+}
+
 # 部署前端
 deploy_frontend() {
     print_info "部署前端..."
@@ -307,7 +331,21 @@ deploy_frontend() {
     
     # 构建前端
     print_info "构建前端..."
-    npm run build
+    
+    # 检查内存，如果不足给出警告
+    check_memory
+    
+    # 尝试构建，如果失败则给出明确提示
+    if ! npm run build; then
+        print_error "前端构建失败！"
+        print_error "可能原因：服务器内存不足（Vite 构建需要较大内存）"
+        print_info "请尝试以下解决方案："
+        echo "  1. 增加 swap 空间（见上方提示）"
+        echo "  2. 或者在本地构建后，将 dist/ 目录上传到服务器"
+        echo "     本地构建: npm run build"
+        echo "     上传: rsync -av dist/ root@服务器:/opt/material-management/frontend/dist/"
+        exit 1
+    fi
     
     # 复制构建文件
     mkdir -p "$PROJECT_DIR/frontend/dist"
@@ -364,19 +402,27 @@ setup_systemd() {
     local src_service="$CURRENT_DIR/backend/systemd/material-management-backend.service"
     local dst_service="/etc/systemd/system/material-management-backend.service"
 
+    # 如果源文件不存在，报错退出
+    if [ ! -f "$src_service" ]; then
+        print_error "源服务文件不存在: $src_service"
+        exit 1
+    fi
+
     # 更新服务文件中的路径
     sed "s|/opt/material-management|$PROJECT_DIR|g" "$src_service" > "$dst_service"
 
-    # 自动生成 SECRET_KEY（如果尚未设置）
-    if ! grep -q 'SECRET_KEY=' "$dst_service" || grep -q 'CHANGE_ME_TO_A_RANDOM_32_CHAR_STRING' "$dst_service"; then
+    # 自动生成 SECRET_KEY（如果尚未设置或仍是占位符）
+    if grep -q 'CHANGE_ME_TO_A_RANDOM_32_CHAR_STRING' "$dst_service" || ! grep -q 'SECRET_KEY=' "$dst_service"; then
         print_info "自动生成 SECRET_KEY..."
         local generated_key
-        generated_key=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        generated_key=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null)
         if [ -n "$generated_key" ]; then
-            # 替换或添加 SECRET_KEY 环境变量
-            sed -i "s|Environment=\"SECRET_KEY=.*\"|Environment=\"SECRET_KEY=$generated_key\"|g" "$dst_service"
-            # 如果上面没匹配到（不存在该 Env 行），则在 ExecStart 前插入
-            if ! grep -q 'SECRET_KEY=' "$dst_service"; then
+            # 检查是否已有 SECRET_KEY 行
+            if grep -q 'Environment="SECRET_KEY=' "$dst_service"; then
+                # 替换现有行
+                sed -i "s|Environment=\"SECRET_KEY=.*\"|Environment=\"SECRET_KEY=$generated_key\"|g" "$dst_service"
+            else
+                # 在 [Service] 段后添加
                 sed -i "/^\[Service\]/a Environment=\"SECRET_KEY=$generated_key\"" "$dst_service"
             fi
             print_success "SECRET_KEY 已自动生成并写入服务文件"
@@ -435,6 +481,39 @@ start_services() {
     print_success "服务启动完成"
 }
 
+# 自动 git pull 函数
+auto_git_pull() {
+    local repo_dir="${1:-$CURRENT_DIR}"
+    
+    # 检查是否是 git 仓库
+    if [ ! -d "$repo_dir/.git" ]; then
+        print_warning "当前目录不是 git 仓库，跳过 git pull"
+        print_info "如需自动更新代码，请确保脚本在 git clone 的目录中执行"
+        return 1
+    fi
+    
+    print_info "检测到 git 仓库，正在拉取最新代码..."
+    cd "$repo_dir"
+    
+    # 暂时禁用 set -e（如果启用了的话），避免 git pull 失败导致脚本退出
+    local old_state
+    old_state=$(set +o | grep 'set +e')
+    set +e
+    
+    if git pull origin main; then
+        print_success "代码已更新到最新版本"
+        # 恢复之前的 set 状态
+        eval "$old_state" 2>/dev/null || true
+        return 0
+    else
+        print_warning "git pull 失败，将使用当前代码继续部署"
+        print_info "可能原因：网络问题、本地修改冲突等"
+        # 恢复之前的 set 状态
+        eval "$old_state" 2>/dev/null || true
+        return 1
+    fi
+}
+
 # 完整部署（首次部署）
 full_deploy() {
     echo ""
@@ -445,6 +524,9 @@ full_deploy() {
     echo "📁 项目目录: $PROJECT_DIR"
     echo "📁 当前目录: $CURRENT_DIR"
     echo ""
+    
+    # 先尝试 git pull（如果在 git 仓库中）
+    auto_git_pull "$CURRENT_DIR"
     
     check_environment
     create_directories
@@ -508,18 +590,7 @@ update_deploy() {
     fi
     
     # 自动从 git 拉取最新代码
-    if [ -d "$CURRENT_DIR/.git" ]; then
-        print_info "检测到 git 仓库，正在拉取最新代码..."
-        cd "$CURRENT_DIR"
-        if git pull origin main; then
-            print_success "代码已更新到最新版本"
-        else
-            print_warning "git pull 失败，将使用当前代码继续部署"
-        fi
-    else
-        print_warning "当前目录不是 git 仓库，跳过 git pull"
-        print_info "如需自动更新代码，请在 git clone 的目录中执行此脚本"
-    fi
+    auto_git_pull "$CURRENT_DIR"
     
     # 检查环境（不中断执行）
     print_info "检查环境..."
@@ -534,13 +605,13 @@ update_deploy() {
     cp -r "$PROJECT_DIR/frontend" "$BACKUP_DIR/" 2>/dev/null || true
     
     # 清理旧备份（保留最近5个）
-    ls -1t "$PROJECT_DIR/backups" | tail -n +6 | xargs -I {} rm -rf "$PROJECT_DIR/backups/{}" 2>/dev/null || true
+    ls -1t "$PROJECT_DIR/backups" 2>/dev/null | tail -n +6 | xargs -I {} rm -rf "$PROJECT_DIR/backups/{}" 2>/dev/null || true
     print_success "备份完成: $BACKUP_DIR"
     
     # 部署后端（无中断更新）
     print_info "更新后端..."
     cd "$PROJECT_DIR/backend"
-    source venv/bin/activate
+    source venv/bin/activate 2>/dev/null || true
     
     # 复制后端文件
     if command -v rsync &> /dev/null; then
@@ -551,7 +622,7 @@ update_deploy() {
     fi
     
     # 更新依赖
-    pip install -r requirements.txt
+    pip install -r requirements.txt 2>/dev/null || true
     
     # 确保数据库已初始化（如果不存在则创建）
     if [ ! -f "$PROJECT_DIR/backend/materials.db" ]; then
@@ -581,23 +652,27 @@ with app.app_context():
     fi
     
     # 构建前端到临时目录
-    npm run build
-    
-    # 使用原子操作更新前端文件（先复制到临时目录，再重命名）
-    TEMP_DIR="$PROJECT_DIR/frontend/dist_new_$(date +%s)"
-    mkdir -p "$TEMP_DIR"
-    cp -r dist/* "$TEMP_DIR/"
-    
-    # 备份旧版本并切换
-    if [ -d "$PROJECT_DIR/frontend/dist" ]; then
-        mv "$PROJECT_DIR/frontend/dist" "$PROJECT_DIR/frontend/dist_old_$(date +%s)"
+    if ! npm run build; then
+        print_error "前端构建失败！"
+        print_error "可能原因：服务器内存不足"
+        print_info "请尝试增加 swap 或在本地构建后上传 dist/ 目录"
+    else
+        # 使用原子操作更新前端文件（先复制到临时目录，再重命名）
+        TEMP_DIR="$PROJECT_DIR/frontend/dist_new_$(date +%s)"
+        mkdir -p "$TEMP_DIR"
+        cp -r dist/* "$TEMP_DIR/"
+        
+        # 备份旧版本并切换
+        if [ -d "$PROJECT_DIR/frontend/dist" ]; then
+            mv "$PROJECT_DIR/frontend/dist" "$PROJECT_DIR/frontend/dist_old_$(date +%s)"
+        fi
+        mv "$TEMP_DIR" "$PROJECT_DIR/frontend/dist"
+        
+        # 清理旧版本
+        find "$PROJECT_DIR/frontend" -name "dist_old_*" -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+        
+        print_success "前端更新完成"
     fi
-    mv "$TEMP_DIR" "$PROJECT_DIR/frontend/dist"
-    
-    # 清理旧版本
-    find "$PROJECT_DIR/frontend" -name "dist_old_*" -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
-    
-    print_success "前端更新完成"
     
     # 复制静态文件
     copy_static_files
@@ -605,17 +680,13 @@ with app.app_context():
     # 设置权限
     set_permissions
     
-    # 更新 systemd 配置（如果有变化）
-    if ! diff -q "$CURRENT_DIR/backend/systemd/material-management-backend.service" "/etc/systemd/system/material-management-backend.service" &>/dev/null; then
-        print_info "更新 systemd 配置..."
-        setup_systemd
-    fi
+    # 强制更新 systemd 配置（不再使用 diff 比对）
+    print_info "更新 systemd 配置..."
+    setup_systemd
     
-    # 更新 Nginx 配置（如果有变化）
-    if ! diff -q "$CURRENT_DIR/nginx/material-management.conf" "/etc/nginx/sites-available/material-management" &>/dev/null; then
-        print_info "更新 Nginx 配置..."
-        setup_nginx
-    fi
+    # 强制更新 Nginx 配置
+    print_info "更新 Nginx 配置..."
+    setup_nginx
     
     # 优雅重启后端服务（不中断连接）
     print_info "重启后端服务..."
@@ -658,6 +729,10 @@ show_help() {
     echo "  - 首次部署请使用 'deploy' 命令"
     echo "  - 后续更新请使用 'update' 命令，可实现零停机更新"
     echo "  - 脚本需要 root 权限运行"
+    echo ""
+    echo "故障排查:"
+    echo "  - 前端构建失败(Killed): 服务器内存不足，需增加 swap"
+    echo "  - 无法登录: 检查 CORS 配置和 SECRET_KEY 环境变量"
 }
 
 # 主函数
