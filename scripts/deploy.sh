@@ -281,6 +281,16 @@ deploy_backend() {
     print_info "安装/更新 Python 依赖..."
     pip install -r requirements.txt
     
+    # 预先初始化数据库（以 root 身份创建，避免 www-data 权限问题）
+    print_info "初始化数据库..."
+    python3 -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR/backend')
+from app import app, init_db
+with app.app_context():
+    init_db()
+"
+    
     print_success "后端部署完成"
 }
 
@@ -504,6 +514,19 @@ update_deploy() {
     
     # 更新依赖
     pip install -r requirements.txt
+    
+    # 确保数据库已初始化（如果不存在则创建）
+    if [ ! -f "$PROJECT_DIR/backend/materials.db" ]; then
+        print_info "数据库不存在，正在初始化..."
+        python3 -c "
+import sys
+sys.path.insert(0, '$PROJECT_DIR/backend')
+from app import app, init_db
+with app.app_context():
+    init_db()
+"
+    fi
+    
     print_success "后端更新完成"
     
     # 部署前端（无中断更新）
