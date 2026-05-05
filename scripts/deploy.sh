@@ -236,6 +236,7 @@ create_directories() {
     mkdir -p "$PROJECT_DIR/frontend/dist"
     mkdir -p "$PROJECT_DIR/static/uploads/images"
     mkdir -p "$PROJECT_DIR/backups"
+    mkdir -p "$PROJECT_DIR/exports"
     print_success "目录创建完成"
 }
 
@@ -324,11 +325,23 @@ set_permissions() {
         useradd -r -s /bin/false www-data
     fi
     
+    # 设置目录所有者
     chown -R www-data:www-data "$PROJECT_DIR"
     chmod -R 755 "$PROJECT_DIR"
-    chmod 777 "$PROJECT_DIR/backend/materials.db" 2>/dev/null || true
-    chmod -R 777 "$PROJECT_DIR/static" 2>/dev/null || true
-    chmod -R 777 "$PROJECT_DIR/backups" 2>/dev/null || true
+    
+    # 确保后端目录有写入权限（用于创建数据库文件）
+    chmod 775 "$PROJECT_DIR/backend"
+    
+    # 如果数据库文件已存在，设置权限
+    if [ -f "$PROJECT_DIR/backend/materials.db" ]; then
+        chmod 664 "$PROJECT_DIR/backend/materials.db"
+        chown www-data:www-data "$PROJECT_DIR/backend/materials.db"
+    fi
+    
+    # 确保子目录有写入权限
+    chmod -R 775 "$PROJECT_DIR/static" 2>/dev/null || true
+    chmod -R 775 "$PROJECT_DIR/backups" 2>/dev/null || true
+    chmod -R 775 "$PROJECT_DIR/exports" 2>/dev/null || true
     
     print_success "权限设置完成"
 }

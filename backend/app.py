@@ -62,83 +62,97 @@ def compress_image(image_file, max_size=1024*1024):
 
 # 数据库初始化
 def init_db():
-    conn = sqlite3.connect(app.config['DATABASE'])
-    c = conn.cursor()
-    
-    # 用户表（添加 is_admin 字段）
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT UNIQUE NOT NULL,
-                  password TEXT NOT NULL,
-                  is_admin INTEGER DEFAULT 0,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    # 检查并添加 is_admin 列（数据库迁移）
     try:
-        c.execute('SELECT is_admin FROM users LIMIT 1')
-    except sqlite3.OperationalError:
-        c.execute('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0')
-    
-    # 物资表（仅保留 id, image, custom_fields, created_at）
-    c.execute('''CREATE TABLE IF NOT EXISTS materials
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  image TEXT,
-                  custom_fields TEXT,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    # 字段定义表（添加 field_options 用于下拉菜单选项）
-    c.execute('''CREATE TABLE IF NOT EXISTS field_definitions
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  field_name TEXT UNIQUE NOT NULL,
-                  field_type TEXT DEFAULT 'text',
-                  is_required INTEGER DEFAULT 0,
-                  field_options TEXT,
-                  sort_order INTEGER DEFAULT 0,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    # 检查并添加 field_options 和 sort_order 列
-    try:
-        c.execute('SELECT field_options FROM field_definitions LIMIT 1')
-    except sqlite3.OperationalError:
-        c.execute('ALTER TABLE field_definitions ADD COLUMN field_options TEXT')
-    
-    try:
-        c.execute('SELECT sort_order FROM field_definitions LIMIT 1')
-    except sqlite3.OperationalError:
-        c.execute('ALTER TABLE field_definitions ADD COLUMN sort_order INTEGER DEFAULT 0')
-    
-    # 操作日志表
-    c.execute('''CREATE TABLE IF NOT EXISTS operation_logs
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  operation_type TEXT,
-                  material_id INTEGER,
-                  material_name TEXT,
-                  quantity_change INTEGER,
-                  operator TEXT,
-                  remark TEXT,
-                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    
-    # 登录日志表
-    c.execute('''CREATE TABLE IF NOT EXISTS login_logs
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT,
-                  login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  ip_address TEXT)''')
-    
-    # 创建默认管理员账号
-    c.execute('SELECT COUNT(*) FROM users')
-    if c.fetchone()[0] == 0:
-        default_password = hashlib.sha256('admin123'.encode()).hexdigest()
-        c.execute("INSERT INTO users (username, password, is_admin) VALUES ('admin', ?, 1)", (default_password,))
-        print("默认管理员账号创建成功！")
-        print("用户名: admin")
-        print("密码: admin123")
-        print("请登录后及时修改密码！")
-    
-    conn.commit()
-    conn.close()
+        # 确保数据库目录存在且有写入权限
+        db_dir = os.path.dirname(app.config['DATABASE'])
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+        
+        conn = sqlite3.connect(app.config['DATABASE'])
+        c = conn.cursor()
+        
+        # 用户表（添加 is_admin 字段）
+        c.execute('''CREATE TABLE IF NOT EXISTS users
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      username TEXT UNIQUE NOT NULL,
+                      password TEXT NOT NULL,
+                      is_admin INTEGER DEFAULT 0,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # 检查并添加 is_admin 列（数据库迁移）
+        try:
+            c.execute('SELECT is_admin FROM users LIMIT 1')
+        except sqlite3.OperationalError:
+            c.execute('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0')
+        
+        # 物资表（仅保留 id, image, custom_fields, created_at）
+        c.execute('''CREATE TABLE IF NOT EXISTS materials
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      image TEXT,
+                      custom_fields TEXT,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # 字段定义表（添加 field_options 用于下拉菜单选项）
+        c.execute('''CREATE TABLE IF NOT EXISTS field_definitions
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      field_name TEXT UNIQUE NOT NULL,
+                      field_type TEXT DEFAULT 'text',
+                      is_required INTEGER DEFAULT 0,
+                      field_options TEXT,
+                      sort_order INTEGER DEFAULT 0,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # 检查并添加 field_options 和 sort_order 列
+        try:
+            c.execute('SELECT field_options FROM field_definitions LIMIT 1')
+        except sqlite3.OperationalError:
+            c.execute('ALTER TABLE field_definitions ADD COLUMN field_options TEXT')
+        
+        try:
+            c.execute('SELECT sort_order FROM field_definitions LIMIT 1')
+        except sqlite3.OperationalError:
+            c.execute('ALTER TABLE field_definitions ADD COLUMN sort_order INTEGER DEFAULT 0')
+        
+        # 操作日志表
+        c.execute('''CREATE TABLE IF NOT EXISTS operation_logs
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      operation_type TEXT,
+                      material_id INTEGER,
+                      material_name TEXT,
+                      quantity_change INTEGER,
+                      operator TEXT,
+                      remark TEXT,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # 登录日志表
+        c.execute('''CREATE TABLE IF NOT EXISTS login_logs
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      username TEXT,
+                      login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      ip_address TEXT)''')
+        
+        # 创建默认管理员账号
+        c.execute('SELECT COUNT(*) FROM users')
+        if c.fetchone()[0] == 0:
+            default_password = hashlib.sha256('admin123'.encode()).hexdigest()
+            c.execute("INSERT INTO users (username, password, is_admin) VALUES ('admin', ?, 1)", (default_password,))
+            print("默认管理员账号创建成功！")
+            print("用户名: admin")
+            print("密码: admin123")
+            print("请登录后及时修改密码！")
+        
+        conn.commit()
+        conn.close()
+        print(f"数据库初始化成功: {app.config['DATABASE']}")
+    except Exception as e:
+        print(f"数据库初始化错误: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
-init_db()
+# 在应用上下文中初始化数据库（确保配置已加载）
+with app.app_context():
+    init_db()
 
 # 获取数据库连接
 def get_db():
