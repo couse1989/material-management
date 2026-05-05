@@ -15,13 +15,17 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = 'material-management-secret-key'
 CORS(app, supports_credentials=True)
-app.config['UPLOAD_FOLDER'] = 'static/uploads/images'
+
+# 获取项目根目录（基于当前文件位置）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static/uploads/images')
 app.config['MAX_IMAGE_SIZE'] = 1024 * 1024
+app.config['DATABASE'] = os.path.join(BASE_DIR, 'materials.db')
 
 # 确保目录存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs('exports', exist_ok=True)
-os.makedirs('backups', exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, 'exports'), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, 'backups'), exist_ok=True)
 
 # 图片压缩函数
 def compress_image(image_file, max_size=1024*1024):
@@ -58,7 +62,7 @@ def compress_image(image_file, max_size=1024*1024):
 
 # 数据库初始化
 def init_db():
-    conn = sqlite3.connect('materials.db')
+    conn = sqlite3.connect(app.config['DATABASE'])
     c = conn.cursor()
     
     # 用户表（添加 is_admin 字段）
@@ -138,7 +142,7 @@ init_db()
 
 # 获取数据库连接
 def get_db():
-    conn = sqlite3.connect('materials.db')
+    conn = sqlite3.connect(app.config['DATABASE'])
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -654,7 +658,7 @@ def export_excel():
     
     df = pd.DataFrame(data)
     filename = f'materials_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    filepath = os.path.join('exports', filename)
+    filepath = os.path.join(BASE_DIR, 'exports', filename)
     
     df.to_excel(filepath, index=False)
     
@@ -729,7 +733,7 @@ def backup_database():
     backup_filename = f'materials_backup_{timestamp}.db'
     backup_path = os.path.join(backup_dir, backup_filename)
     
-    db_path = os.path.join(base_dir, 'materials.db')
+    db_path = app.config['DATABASE']
     import shutil
     shutil.copy2(db_path, backup_path)
     
@@ -765,7 +769,7 @@ def restore_database():
     file = request.files['file']
     # 使用基于项目根目录的绝对路径
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(base_dir, 'materials.db')
+    db_path = app.config['DATABASE']
     file.save(db_path)
     
     return jsonify({'message': '还原成功'})
