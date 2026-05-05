@@ -241,7 +241,7 @@
               style="width: 100px; height: 100px;"
               fit="cover"
             />
-            <el-button type="text" @click="form.image = ''" style="color: #f56c6c;">删除图片</el-button>
+            <el-button link @click="form.image = ''" style="color: #f56c6c;">删除图片</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -713,13 +713,6 @@ export default {
   
   .header-actions .el-upload .el-button {
     width: 100% !important;
-  }
-  
-  /* 表格容器横向滚动 */
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-bottom: 10px;
   }
   
   /* 隐藏图片列（移动端无需显示小图） */

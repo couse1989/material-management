@@ -156,12 +156,6 @@ export default {
   width: 100%;
 }
 
-.table-container {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 10px;
-}
-
 .card-view {
   display: flex;
   flex-direction: column;
@@ -197,18 +191,13 @@ export default {
   
   :deep(.el-table .cell) {
     padding: 8px 4px;
+    white-space: normal;
+    word-break: break-all;
   }
 }
 
 /* 响应式布局 - 手机 */
 @media (max-width: 768px) {
-  /* 表格容器横向滚动 */
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-bottom: 10px;
-  }
-  
   /* 操作列优化 */
   :deep(.el-table .cell) {
     padding: 6px 4px;
