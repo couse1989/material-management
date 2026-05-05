@@ -13,8 +13,21 @@ import json
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'material-management-secret-key'
-CORS(app, supports_credentials=True)
+
+# secret_key 从环境变量读取，回退到固定值（生产环境务必通过 .env 或 systemd Environment 设置 SECRET_KEY）
+app.secret_key = os.environ.get('SECRET_KEY', 'material-management-secret-key-change-in-prod')
+
+# Session Cookie 配置：支持 Nginx 反代场景
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # 若已配置 HTTPS，改为 True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+# CORS 配置：明确允许的来源，supports_credentials=True 时不能使用通配符 *
+_allowed_origins = os.environ.get(
+    'CORS_ORIGINS',
+    'http://keeponline.cn,http://www.keeponline.cn,http://localhost,http://localhost:5173,http://localhost:8080'
+).split(',')
+CORS(app, supports_credentials=True, origins=_allowed_origins)
 
 # 获取项目根目录（基于当前文件位置）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
