@@ -84,7 +84,9 @@ export default {
   },
   mounted() {
     this.checkAuth()
-    this.loadUsers()
+    if (this.isAdmin) {
+      this.loadUsers()
+    }
   },
   methods: {
     checkAuth() {

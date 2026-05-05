@@ -520,23 +520,48 @@ def update_material(material_id):
     data = request.json
     conn = get_db()
     
-    # 获取原物资信息用于日志
+    # 获取原物资信息
     old_material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
+    old_custom_fields = json.loads(old_material['custom_fields']) if old_material['custom_fields'] else {}
+    old_image = old_material['image'] or ''
     
+    # 新的字段
     custom_fields = data.get('custom_fields', {})
+    new_image = data.get('image', '')
     
+    # 比较并生成变更描述
+    changes = []
+    
+    # 比较自定义字段
+    all_field_names = set(list(old_custom_fields.keys()) + list(custom_fields.keys()))
+    for field_name in all_field_names:
+        old_value = str(old_custom_fields.get(field_name, ''))
+        new_value = str(custom_fields.get(field_name, ''))
+        if old_value != new_value:
+            changes.append(f'{field_name}: {old_value} → {new_value}')
+    
+    # 比较图片
+    if old_image != new_image:
+        old_display = old_image if old_image else '无'
+        new_display = new_image if new_image else '无'
+        changes.append(f'图片: {old_display} → {new_display}')
+    
+    # 更新数据库
     conn.execute(
         'UPDATE materials SET image = ?, custom_fields = ? WHERE id = ?',
-        (data.get('image', ''), json.dumps(custom_fields), material_id)
+        (new_image, json.dumps(custom_fields), material_id)
     )
     
     # 记录编辑日志
     material_name = custom_fields.get('物资名称', f'物资#{material_id}')
     operator = session['username']
+    change_detail = '; '.join(changes) if changes else '无变更'
+    remark = f'编辑物资: {change_detail}'
+    
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
-        ('edit_material', material_id, material_name, None, operator, '编辑物资信息')
+        ('编辑', material_id, material_name, 0, operator, remark)
     )
     
     conn.commit()
