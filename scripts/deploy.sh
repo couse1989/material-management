@@ -359,16 +359,40 @@ set_permissions() {
 # 配置 systemd 服务
 setup_systemd() {
     print_info "配置 systemd 服务..."
-    
+
+    # 源服务文件
+    local src_service="$CURRENT_DIR/backend/systemd/material-management-backend.service"
+    local dst_service="/etc/systemd/system/material-management-backend.service"
+
     # 更新服务文件中的路径
-    sed "s|/opt/material-management|$PROJECT_DIR|g" "$CURRENT_DIR/backend/systemd/material-management-backend.service" > /etc/systemd/system/material-management-backend.service
-    
+    sed "s|/opt/material-management|$PROJECT_DIR|g" "$src_service" > "$dst_service"
+
+    # 自动生成 SECRET_KEY（如果尚未设置）
+    if ! grep -q 'SECRET_KEY=' "$dst_service" || grep -q 'CHANGE_ME_TO_A_RANDOM_32_CHAR_STRING' "$dst_service"; then
+        print_info "自动生成 SECRET_KEY..."
+        local generated_key
+        generated_key=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        if [ -n "$generated_key" ]; then
+            # 替换或添加 SECRET_KEY 环境变量
+            sed -i "s|Environment=\"SECRET_KEY=.*\"|Environment=\"SECRET_KEY=$generated_key\"|g" "$dst_service"
+            # 如果上面没匹配到（不存在该 Env 行），则在 ExecStart 前插入
+            if ! grep -q 'SECRET_KEY=' "$dst_service"; then
+                sed -i "/^\[Service\]/a Environment=\"SECRET_KEY=$generated_key\"" "$dst_service"
+            fi
+            print_success "SECRET_KEY 已自动生成并写入服务文件"
+        else
+            print_warning "无法生成 SECRET_KEY（python3 不可用），请手动设置"
+        fi
+    else
+        print_info "SECRET_KEY 已存在，保留原有值"
+    fi
+
     # 重新加载 systemd
     systemctl daemon-reload
-    
+
     # 启用服务
     systemctl enable material-management-backend.service
-    
+
     print_success "systemd 服务配置完成"
 }
 
