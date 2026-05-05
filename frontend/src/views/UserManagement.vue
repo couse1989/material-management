@@ -10,6 +10,7 @@
     </div>
     
     <!-- 用户列表 -->
+    <div class="table-container">
     <el-table :data="users" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="username" label="用户名" />
@@ -40,6 +41,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
     
     <!-- 添加用户对话框（仅管理员） -->
     <el-dialog v-model="showAddDialog" title="添加用户" width="400px" v-if="isAdmin">
@@ -153,5 +155,80 @@ export default {
 <style scoped>
 .user-management {
   padding: 20px;
+  width: 100%;
+}
+
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 10px;
+}
+
+/* 响应式布局 - 平板 */
+@media (max-width: 1024px) {
+  .user-management {
+    padding: 15px;
+  }
+  
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+  
+  :deep(.el-table .cell) {
+    padding: 8px 4px;
+  }
+}
+
+/* 响应式布局 - 手机 */
+@media (max-width: 768px) {
+  .user-management {
+    padding: 10px;
+  }
+  
+  h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  /* 表格容器横向滚动 */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 10px;
+  }
+  
+  /* 操作列优化 */
+  :deep(.el-table .cell) {
+    padding: 6px 4px;
+  }
+  
+  :deep(.el-button) {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  /* 表格横向滚动 */
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  
+  /* 对话框适配 */
+  :deep(.el-dialog) {
+    width: 95% !important;
+    max-width: 400px;
+    margin: 10px auto !important;
+  }
+  
+  /* 表单适配 */
+  :deep(.el-form-item__label) {
+    float: none;
+    display: block;
+    text-align: left;
+    padding: 0 0 8px;
+  }
+  
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
 }
 </style>

@@ -14,6 +14,18 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# 获取真实客户端 IP（处理 Nginx 反向代理）
+def get_real_ip():
+    """获取真实客户端 IP（处理 Nginx 反向代理）"""
+    # 尝试从 Nginx 传递的 header 获取
+    if request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    elif request.headers.get('X-Forwarded-For'):
+        # X-Forwarded-For 格式：client, proxy1, proxy2
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    else:
+        return request.remote_addr
+
 # secret_key 从环境变量读取，回退到固定值（生产环境务必通过 .env 或 systemd Environment 设置 SECRET_KEY）
 app.secret_key = os.environ.get('SECRET_KEY', 'material-management-secret-key-change-in-prod')
 
@@ -218,7 +230,7 @@ def login():
         session['is_admin'] = user['is_admin']
         
         # 记录登录日志
-        ip = request.remote_addr
+        ip = get_real_ip()
         conn.execute('INSERT INTO login_logs (username, ip_address) VALUES (?, ?)', 
                     (username, ip))
         conn.commit()
@@ -230,6 +242,11 @@ def login():
             'is_admin': user['is_admin']
         })
     else:
+        # 记录登录失败日志
+        ip = get_real_ip()
+        conn.execute('INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) VALUES (?, ?, ?, ?, ?, ?)',
+                     ('login_failed', None, username, None, username, f'登录失败，IP: {ip}'))
+        conn.commit()
         conn.close()
         return jsonify({'error': '用户名或密码错误'}), 401
 
@@ -503,12 +520,25 @@ def update_material(material_id):
     data = request.json
     conn = get_db()
     
+    # 获取原物资信息用于日志
+    old_material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
+    
     custom_fields = data.get('custom_fields', {})
     
     conn.execute(
         'UPDATE materials SET image = ?, custom_fields = ? WHERE id = ?',
         (data.get('image', ''), json.dumps(custom_fields), material_id)
     )
+    
+    # 记录编辑日志
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
+    operator = session['username']
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('edit_material', material_id, material_name, None, operator, '编辑物资信息')
+    )
+    
     conn.commit()
     conn.close()
     return jsonify({'message': '更新成功'})
@@ -689,6 +719,17 @@ def export_excel():
     
     df.to_excel(filepath, index=False)
     
+    # 记录导出日志
+    conn = get_db()
+    operator = session['username']
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('export_excel', None, None, None, operator, f'导出{len(materials)}条记录')
+    )
+    conn.commit()
+    conn.close()
+    
     return send_file(filepath, as_attachment=True)
 
 # Excel导入（自动创建不存在的字段）
@@ -743,6 +784,16 @@ def import_excel():
             (image, json.dumps(custom_fields))
         )
     
+    conn.commit()
+    
+    # 记录导入日志
+    operator = session['username']
+    conn = get_db()
+    conn.execute(
+        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        ('import_excel', None, None, None, operator, f'导入{len(df)}条记录')
+    )
     conn.commit()
     conn.close()
     

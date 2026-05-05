@@ -8,10 +8,17 @@
         </div>
       </template>
       
+      <div class="table-container">
       <el-table :data="fields" style="width: 100%" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="field_name" label="字段名称" />
-        <el-table-column prop="field_type" label="字段类型" width="120" />
+        <el-table-column prop="field_type" label="字段类型" width="120">
+          <template #default="scope">
+            <el-tag>
+              {{ getFieldTypeIcon(scope.row.field_type) }} {{ getFieldTypeName(scope.row.field_type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="选项值" width="200">
           <template #default="scope">
             <span v-if="scope.row.field_options">
@@ -38,6 +45,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
       
       <el-empty v-if="fields.length === 0" description="暂无自定义字段" />
     </el-card>
@@ -153,6 +161,26 @@ export default {
     this.loadFields()
   },
   methods: {
+    getFieldTypeIcon(fieldType) {
+      const iconMap = {
+        'text': '📝',
+        'number': '🔢',
+        'date': '📅',
+        'select': '📋',
+        'textarea': '📄'
+      }
+      return iconMap[fieldType] || '📝'
+    },
+    getFieldTypeName(fieldType) {
+      const nameMap = {
+        'text': '文本',
+        'number': '数字',
+        'date': '日期',
+        'select': '下拉选择',
+        'textarea': '文本域'
+      }
+      return nameMap[fieldType] || '文本'
+    },
     async loadFields() {
       try {
         const res = await axios.get('/api/fields')
@@ -233,5 +261,83 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 10px;
+}
+
+/* 响应式布局 - 平板 */
+@media (max-width: 1024px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  :deep(.el-table) {
+    font-size: 13px;
+  }
+  
+  :deep(.el-table .cell) {
+    padding: 8px 4px;
+  }
+}
+
+/* 响应式布局 - 手机 */
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .card-header .el-button {
+    width: 100%;
+    margin-top: 8px;
+  }
+  
+  /* 表格容器横向滚动 */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 10px;
+  }
+  
+  /* 操作列优化 */
+  :deep(.el-table .cell) {
+    padding: 6px 4px;
+  }
+  
+  :deep(.el-button) {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  /* 表格横向滚动 */
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+  
+  /* 对话框适配 */
+  :deep(.el-dialog) {
+    width: 95% !important;
+    max-width: 500px;
+    margin: 10px auto !important;
+  }
+  
+  /* 表单适配 */
+  :deep(.el-form-item__label) {
+    float: none;
+    display: block;
+    text-align: left;
+    padding: 0 0 8px;
+  }
+  
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
 }
 </style>

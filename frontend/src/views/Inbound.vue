@@ -137,3 +137,47 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.inbound {
+  width: 100%;
+}
+
+/* 响应式布局 - 平板 */
+@media (max-width: 1024px) {
+  :deep(.el-form) {
+    max-width: 100% !important;
+  }
+}
+
+/* 响应式布局 - 手机 */
+@media (max-width: 768px) {
+  :deep(.el-form) {
+    max-width: 100% !important;
+  }
+  
+  :deep(.el-form-item__label) {
+    float: none;
+    display: block;
+    text-align: left;
+    padding: 0 0 8px;
+  }
+  
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+  
+  :deep(.el-select) {
+    width: 100%;
+  }
+  
+  :deep(.el-input-number) {
+    width: 100% !important;
+  }
+  
+  :deep(.el-button) {
+    width: 100%;
+    margin-top: 10px;
+  }
+}
+</style>
