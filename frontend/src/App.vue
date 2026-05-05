@@ -88,7 +88,7 @@
                 <el-icon><Lock /></el-icon>
                 <span>修改密码</span>
               </el-menu-item>
-              <el-menu-item @click="handleLogout">
+              <el-menu-item index="logout" @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon>
                 <span>注销</span>
               </el-menu-item>

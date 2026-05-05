@@ -41,14 +41,15 @@
         </div>
       </template>
 
-      <el-table
-        ref="inventoryTable"
-        :data="displayedMaterials"
-        style="width: 100%"
-        stripe
-        @selection-change="handleSelectionChange"
-        @sort-change="handleSortChange"
-      >
+      <div class="table-container">
+        <el-table
+          ref="inventoryTable"
+          :data="displayedMaterials"
+          style="width: 100%"
+          stripe
+          @selection-change="handleSelectionChange"
+          @sort-change="handleSortChange"
+        >
         <el-table-column type="selection" width="55" />
         <el-table-column
           prop="id"
@@ -73,7 +74,7 @@
         </el-table-column>
 
         <!-- 图片列 -->
-        <el-table-column label="图片" width="100" fixed="right">
+        <el-table-column label="图片" width="100" fixed="right" class-name="image-column">
           <template #default="scope">
             <el-image
               v-if="scope.row.image"
@@ -86,13 +87,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right" class-name="action-column">
           <template #default="scope">
             <el-button size="small" @click="editMaterial(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteMaterial(scope.row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+      </div>
       
       <!-- 分页组件 -->
       <div class="pagination-container">
@@ -634,6 +636,33 @@ export default {
   
   .header-actions .el-upload .el-button {
     width: 100% !important;
+  }
+  
+  /* 表格容器横向滚动 */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 10px;
+  }
+  
+  /* 隐藏图片列（移动端无需显示小图） */
+  :deep(.image-column) {
+    display: none;
+  }
+  
+  /* 操作列优化 */
+  :deep(.action-column) {
+    width: 120px !important;
+    min-width: 120px;
+  }
+  
+  :deep(.action-column .cell) {
+    padding: 4px 2px;
+  }
+  
+  :deep(.action-column .el-button) {
+    padding: 4px 8px;
+    font-size: 12px;
   }
   
   /* 表格横向滚动 */
