@@ -105,7 +105,7 @@
             <el-image
               :src="getImageUrl(item.image)"
               :preview-src-list="[getImageUrl(item.image)]"
-              style="width: 100%; height: 150px;"
+              style="width: 100%;"
               fit="cover"
             />
           </div>
@@ -641,6 +641,10 @@ export default {
   margin-bottom: 10px;
 }
 
+.card-image .el-image {
+  height: 150px;
+}
+
 .card-item {
   display: flex;
   padding: 6px 0;
@@ -694,15 +698,18 @@ export default {
   }
   
   .header-actions {
-    flex-direction: column;
-    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+    width: 100%;
   }
   
   .header-actions .el-input,
   .header-actions .el-button,
   .header-actions .el-upload {
-    width: 100% !important;
+    width: auto !important;
+    flex: 1 1 auto;
+    min-width: 120px;
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
@@ -718,6 +725,45 @@ export default {
   /* 隐藏图片列（移动端无需显示小图） */
   :deep(.image-column) {
     display: none;
+  }
+  
+  /* 卡片图片优化 - 减小图片高度 */
+  .card-image .el-image {
+    height: 100px !important;
+  }
+  
+  /* 卡片字段样式美化 */
+  .card-item {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: flex-start;
+  }
+  
+  .card-label {
+    font-weight: 600;
+    color: #909399;
+    min-width: 80px;
+    flex-shrink: 0;
+  }
+  
+  .card-value {
+    flex: 1;
+    color: #303133;
+    word-break: break-all;
+  }
+  
+  /* 卡片操作按钮优化 */
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: flex-end;
+  }
+  
+  .card-actions .el-button {
+    flex: 1;
+    max-width: 120px;
   }
   
   /* 操作列优化 */
