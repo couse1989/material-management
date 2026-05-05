@@ -556,7 +556,7 @@ def update_material(material_id):
     material_name = custom_fields.get('物资名称', f'物资#{material_id}')
     operator = session['username']
     change_detail = '; '.join(changes) if changes else '无变更'
-    remark = f'编辑物资: {change_detail}'
+    remark = f'编辑物资信息: {change_detail}'
     
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)

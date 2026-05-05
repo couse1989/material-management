@@ -8,7 +8,8 @@
         </div>
       </template>
       
-      <div class="table-container">
+      <!-- 桌面端：表格视图 -->
+      <div v-if="screenWidth >= 768" class="table-container">
       <el-table :data="fields" style="width: 100%" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="field_name" label="字段名称" />
@@ -45,6 +46,44 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
+      
+      <!-- 移动端：卡片视图 -->
+      <div v-else class="card-view">
+        <el-card v-for="item in fields" :key="item.id" class="data-card" shadow="hover">
+          <div class="card-item">
+            <span class="card-label">ID：</span>
+            <span class="card-value">{{ item.id }}</span>
+          </div>
+          <div class="card-item">
+            <span class="card-label">字段名称：</span>
+            <span class="card-value">{{ item.field_name }}</span>
+          </div>
+          <div class="card-item">
+            <span class="card-label">字段类型：</span>
+            <span class="card-value">
+              <el-tag>
+                {{ getFieldTypeIcon(item.field_type) }} {{ getFieldTypeName(item.field_type) }}
+              </el-tag>
+            </span>
+          </div>
+          <div class="card-item">
+            <span class="card-label">选项值：</span>
+            <span class="card-value">{{ item.field_options || '-' }}</span>
+          </div>
+          <div class="card-item">
+            <span class="card-label">是否必填：</span>
+            <span class="card-value">
+              <el-tag :type="item.is_required ? 'danger' : 'info'">
+                {{ item.is_required ? '是' : '否' }}
+              </el-tag>
+            </span>
+          </div>
+          <div class="card-actions">
+            <el-button size="small" @click="openEditDialog(item)">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteField(item.id)">删除</el-button>
+          </div>
+        </el-card>
       </div>
       
       <el-empty v-if="fields.length === 0" description="暂无自定义字段" />
@@ -149,6 +188,7 @@ export default {
       showAddDialog: false,
       showEditDialog: false,
       editingFieldId: null,
+      screenWidth: window.innerWidth,
       form: {
         field_name: '',
         field_type: 'text',
@@ -159,6 +199,10 @@ export default {
   },
   mounted() {
     this.loadFields()
+    window.addEventListener('resize', this.handleResize)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize)
   },
   methods: {
     getFieldTypeIcon(fieldType) {
@@ -251,6 +295,9 @@ export default {
           this.$message.error('删除失败')
         }
       }
+    },
+    handleResize() {
+      this.screenWidth = window.innerWidth
     }
   }
 }
@@ -269,6 +316,40 @@ export default {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 10px;
+}
+
+.card-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-card {
+  margin-bottom: 10px;
+}
+
+.card-item {
+  display: flex;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-label {
+  font-weight: bold;
+  color: #606266;
+  min-width: 80px;
+}
+
+.card-value {
+  flex: 1;
+  color: #303133;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
 }
 
 /* 响应式布局 - 平板 */

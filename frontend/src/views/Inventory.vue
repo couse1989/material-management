@@ -41,7 +41,8 @@
         </div>
       </template>
 
-      <div class="table-container">
+      <!-- 桌面端：表格视图 -->
+      <div v-if="screenWidth >= 768" class="table-container">
         <el-table
           ref="inventoryTable"
           :data="displayedMaterials"
@@ -94,6 +95,36 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
+      
+      <!-- 移动端：卡片视图 -->
+      <div v-else class="card-view">
+        <el-card v-for="item in displayedMaterials" :key="item.id" class="data-card" shadow="hover">
+          <!-- 图片 -->
+          <div v-if="item.image" class="card-image">
+            <el-image
+              :src="getImageUrl(item.image)"
+              :preview-src-list="[getImageUrl(item.image)]"
+              style="width: 100%; height: 150px;"
+              fit="cover"
+            />
+          </div>
+          <!-- 字段信息 -->
+          <div class="card-item" v-for="field in displayedFields" :key="field.id">
+            <span class="card-label">{{ field.field_name }}：</span>
+            <span class="card-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
+          </div>
+          <!-- ID -->
+          <div class="card-item">
+            <span class="card-label">ID：</span>
+            <span class="card-value">{{ item.id }}</span>
+          </div>
+          <!-- 操作按钮 -->
+          <div class="card-actions">
+            <el-button size="small" @click="editMaterial(item)">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteMaterial(item.id)">删除</el-button>
+          </div>
+        </el-card>
       </div>
       
       <!-- 分页组件 -->
@@ -249,6 +280,7 @@ export default {
       // 分页相关
       currentPage: 1,
       pageSize: 25,
+      screenWidth: window.innerWidth,
       form: {
         id: null,
         image: '',
@@ -298,6 +330,10 @@ export default {
     this.loadColumnSettings()
     this.loadCustomFields()
     this.loadMaterials()
+    window.addEventListener('resize', this.handleResize)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize)
   },
   methods: {
     loadColumnSettings() {
@@ -524,6 +560,9 @@ export default {
       } catch (error) {
         this.$message.error('图片上传失败')
       }
+    },
+    handleResize() {
+      this.screenWidth = window.innerWidth
     }
   }
 }
@@ -586,6 +625,44 @@ export default {
 .column-name {
   margin-left: 8px;
   flex: 1;
+}
+
+.card-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-card {
+  margin-bottom: 10px;
+}
+
+.card-image {
+  margin-bottom: 10px;
+}
+
+.card-item {
+  display: flex;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-label {
+  font-weight: bold;
+  color: #606266;
+  min-width: 80px;
+}
+
+.card-value {
+  flex: 1;
+  color: #303133;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
 }
 
 /* 响应式布局 - 平板 */

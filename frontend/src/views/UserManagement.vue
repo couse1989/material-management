@@ -10,7 +10,8 @@
     </div>
     
     <!-- 用户列表 -->
-    <div class="table-container">
+    <!-- 桌面端：表格视图 -->
+    <div v-if="screenWidth >= 768" class="table-container">
     <el-table :data="users" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="username" label="用户名" />
@@ -41,6 +42,48 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
+    
+    <!-- 移动端：卡片视图 -->
+    <div v-else class="card-view">
+      <el-card v-for="item in users" :key="item.id" class="data-card" shadow="hover">
+        <div class="card-item">
+          <span class="card-label">ID：</span>
+          <span class="card-value">{{ item.id }}</span>
+        </div>
+        <div class="card-item">
+          <span class="card-label">用户名：</span>
+          <span class="card-value">{{ item.username }}</span>
+        </div>
+        <div class="card-item">
+          <span class="card-label">管理员：</span>
+          <span class="card-value">
+            <el-tag :type="item.is_admin ? 'danger' : 'info'">
+              {{ item.is_admin ? '是' : '否' }}
+            </el-tag>
+          </span>
+        </div>
+        <div class="card-item">
+          <span class="card-label">创建时间：</span>
+          <span class="card-value">{{ item.created_at }}</span>
+        </div>
+        <div class="card-actions" v-if="isAdmin">
+          <el-button 
+            v-if="item.id !== currentUserId"
+            type="warning" 
+            size="small"
+            @click="resetPassword(item)">
+            重置密码
+          </el-button>
+          <el-button 
+            v-if="item.id !== currentUserId"
+            type="danger" 
+            size="small"
+            @click="deleteUser(item)">
+            删除
+          </el-button>
+        </div>
+      </el-card>
     </div>
     
     <!-- 添加用户对话框（仅管理员） -->
@@ -75,6 +118,7 @@ export default {
       isAdmin: false,
       currentUserId: null,
       showAddDialog: false,
+      screenWidth: window.innerWidth,
       addForm: {
         username: '',
         password: '123456',
@@ -87,6 +131,10 @@ export default {
     if (this.isAdmin) {
       this.loadUsers()
     }
+    window.addEventListener('resize', this.handleResize)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize)
   },
   methods: {
     checkAuth() {
@@ -95,15 +143,21 @@ export default {
       this.currentUserId = user.id
     },
     async loadUsers() {
+      if (!this.isAdmin) {
+        // 非管理员只能看到自己
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        this.users = [user]
+        return
+      }
+      
       try {
         const res = await axios.get('/api/users')
         this.users = res.data
       } catch (error) {
-        // 如果不是管理员，只能看到自己
-        if (error.response?.status === 403) {
-          const user = JSON.parse(localStorage.getItem('user') || '{}')
-          this.users = [user]
-        }
+        console.error('加载用户列表失败', error)
+        // 如果是 401 或 403，只显示当前用户
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        this.users = [user]
       }
     },
     async addUser() {
@@ -149,6 +203,9 @@ export default {
           this.$message.error(error.response?.data?.error || '删除失败')
         }
       }
+    },
+    handleResize() {
+      this.screenWidth = window.innerWidth
     }
   }
 }
@@ -164,6 +221,40 @@ export default {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-bottom: 10px;
+}
+
+.card-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-card {
+  margin-bottom: 10px;
+}
+
+.card-item {
+  display: flex;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-label {
+  font-weight: bold;
+  color: #606266;
+  min-width: 80px;
+}
+
+.card-value {
+  flex: 1;
+  color: #303133;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
 }
 
 /* 响应式布局 - 平板 */
