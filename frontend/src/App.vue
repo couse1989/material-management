@@ -20,10 +20,10 @@
           <el-menu-item style="float: right;" @click="handleLogout" :index="'logout'">
             <el-icon style="margin-right: 4px;"><SwitchButton /></el-icon>注销
           </el-menu-item>
-          <el-submenu style="float: right;" index="user-menu">
+          <el-sub-menu style="float: right;" index="user-menu">
             <template #title>{{ currentUser }}</template>
-            <el-menu-item @click="showChangePasswordDialog = true">修改密码</el-menu-item>
-          </el-submenu>
+            <el-menu-item index="change-password" @click="showChangePasswordDialog = true">修改密码</el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-header>
       <el-main>
