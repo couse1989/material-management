@@ -109,15 +109,22 @@
               fit="cover"
             />
           </div>
-          <!-- 字段信息 -->
-          <div class="card-item" v-for="field in displayedFields" :key="field.id">
-            <span class="card-label">{{ field.field_name }}：</span>
-            <span class="card-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
-          </div>
-          <!-- ID -->
-          <div class="card-item">
-            <span class="card-label">ID：</span>
-            <span class="card-value">{{ item.id }}</span>
+          <!-- 字段信息：2列布局 -->
+          <div class="card-body">
+            <!-- 每行2个字段 -->
+            <div class="card-row" v-for="(row, rowIndex) in getFieldRows(item)" :key="rowIndex">
+              <div class="card-item compact" v-for="field in row" :key="field.id">
+                <span class="card-label">{{ field.field_name }}</span>
+                <span class="card-value">{{ field.value }}</span>
+              </div>
+            </div>
+            <!-- ID单独一行，占满宽度 -->
+            <div class="card-row">
+              <div class="card-item compact" style="grid-column: 1 / -1;">
+                <span class="card-label">ID</span>
+                <span class="card-value">{{ item.id }}</span>
+              </div>
+            </div>
           </div>
           <!-- 操作按钮 -->
           <div class="card-actions">
@@ -336,6 +343,28 @@ export default {
     window.removeEventListener('resize', this.handleResize)
   },
   methods: {
+    // 将字段按2个一组分组，用于移动端双列显示
+    getFieldRows(item) {
+      const fields = this.displayedFields || []
+      const rows = []
+      for (let i = 0; i < fields.length; i += 2) {
+        const row = []
+        // 第一个字段
+        row.push({
+          ...fields[i],
+          value: this.getCustomFieldValue(item, fields[i].field_name)
+        })
+        // 第二个字段（如果存在）
+        if (i + 1 < fields.length) {
+          row.push({
+            ...fields[i + 1],
+            value: this.getCustomFieldValue(item, fields[i + 1].field_name)
+          })
+        }
+        rows.push(row)
+      }
+      return rows
+    },
     loadColumnSettings() {
       try {
         const saved = localStorage.getItem('inventoryColumnSettings')
@@ -735,6 +764,46 @@ export default {
     display: none;
   }
   
+/* 响应式布局 - 手机 */
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  /* 搜索框占满整行 */
+  .header-actions .el-input {
+    width: 100% !important;
+    flex: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* 其他按钮统一2个一行 */
+  .header-actions .el-button,
+  .header-actions .el-upload {
+    width: calc(50% - 4px) !important;
+    flex: none !important;
+    min-width: auto;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .header-actions .el-upload {
+    display: block !important;
+  }
+  
+  .header-actions .el-upload .el-button {
+    width: 100% !important;
+  }
+  
   /* 卡片视图整体优化 */
   .card-view {
     display: flex;
@@ -749,7 +818,7 @@ export default {
     overflow: hidden;
   }
   
-  /* 卡片图片优化 - 减小图片高度，添加圆角 */
+  /* 卡片图片优化 */
   .card-image {
     margin: -20px -20px 12px -20px;
     border-radius: 8px 8px 0 0;
@@ -761,35 +830,46 @@ export default {
     width: 100% !important;
   }
   
-  /* 卡片字段样式美化 */
-  .card-item {
+  /* 卡片内容区：2列网格布局 */
+  .card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 8px 0;
+  }
+  
+  /* 每行2个字段 */
+  .card-row {
+    display: contents; /* 让子元素直接参与grid布局 */
+  }
+  
+  /* 字段样式：更小字体、更紧凑 */
+  .card-item.compact {
     display: flex;
-    padding: 10px 20px;
-    border-bottom: 1px solid #f0f0f0;
-    align-items: flex-start;
-    line-height: 1.6;
+    flex-direction: column;
+    padding: 6px 12px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 11px;
   }
   
-  .card-item:last-of-type {
-    border-bottom: none;
-  }
-  
-  .card-label {
+  .card-item.compact .card-label {
     font-weight: 600;
     color: #909399;
-    min-width: 90px;
+    font-size: 10px;
+    margin-bottom: 2px;
+    min-width: auto;
     flex-shrink: 0;
-    font-size: 13px;
   }
   
-  .card-value {
+  .card-item.compact .card-value {
     flex: 1;
     color: #303133;
     word-break: break-all;
-    font-size: 14px;
+    font-size: 12px;
+    line-height: 1.4;
   }
   
-  /* 卡片操作按钮优化 */
+  /* 操作按钮区域 */
   .card-actions {
     display: flex;
     gap: 8px;
@@ -802,9 +882,10 @@ export default {
   .card-actions .el-button {
     flex: 1;
     max-width: 120px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
   
-  /* 操作列优化 */
   :deep(.action-column) {
     width: 120px !important;
     min-width: 120px;
@@ -819,16 +900,16 @@ export default {
     font-size: 12px;
   }
   
-  /* 表格横向滚动 */
   :deep(.el-table) {
     font-size: 12px;
   }
   
   :deep(.el-table .cell) {
     padding: 6px 4px;
-    white-space: normal;  /* 允许换行，不需要横向滑动 */
-    word-break: break-all;  /* 强制换行 */
+    white-space: normal;
+    word-break: break-all;
   }
+}
   
   /* 分页组件适配 */
   :deep(.el-pagination) {
