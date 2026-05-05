@@ -507,6 +507,20 @@ update_deploy() {
         exit 1
     fi
     
+    # 自动从 git 拉取最新代码
+    if [ -d "$CURRENT_DIR/.git" ]; then
+        print_info "检测到 git 仓库，正在拉取最新代码..."
+        cd "$CURRENT_DIR"
+        if git pull origin main; then
+            print_success "代码已更新到最新版本"
+        else
+            print_warning "git pull 失败，将使用当前代码继续部署"
+        fi
+    else
+        print_warning "当前目录不是 git 仓库，跳过 git pull"
+        print_info "如需自动更新代码，请在 git clone 的目录中执行此脚本"
+    fi
+    
     # 检查环境（不中断执行）
     print_info "检查环境..."
     check_python
