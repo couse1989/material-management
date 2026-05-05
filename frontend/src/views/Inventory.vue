@@ -672,7 +672,8 @@ export default {
   
   :deep(.el-table .cell) {
     padding: 6px 4px;
-    white-space: nowrap;
+    white-space: normal;  /* 允许换行，不需要横向滑动 */
+    word-break: break-all;  /* 强制换行 */
   }
   
   /* 分页组件适配 */
