@@ -116,8 +116,8 @@
           <!-- 字段信息：智能布局，内容多的占满行，内容少的并排，图片右下角 -->
           <div class="card-body">
             <div class="card-grid-smart" :class="{ 'has-image': item.image }">
-              <div 
-                v-for="field in displayedFields" 
+              <div
+                v-for="field in displayedFields"
                 :key="field.id"
                 class="card-cell"
                 :class="[
@@ -127,6 +127,15 @@
               >
                 <span class="cell-label">{{ field.field_name }}</span>
                 <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
+              </div>
+              <!-- 显示各区域库存 -->
+              <div
+                v-for="areaQty in getAreaQuantities(item)"
+                :key="areaQty.area"
+                class="card-cell cell-small area-quantity-cell"
+              >
+                <span class="cell-label">{{ areaQty.area }}</span>
+                <span class="cell-value area-quantity">{{ areaQty.quantity }}</span>
               </div>
               <!-- 小图片嵌入网格右下角 -->
               <div v-if="item.image" class="card-cell card-image-cell">
@@ -375,6 +384,22 @@ export default {
       }
       // 短内容占1列
       return 'cell-small'
+    },
+    // 获取各区域库存数量
+    getAreaQuantities(item) {
+      if (!item.custom_fields) return []
+      const areas = []
+      // 查找所有以"数量_"开头的字段
+      Object.keys(item.custom_fields).forEach(key => {
+        if (key.startsWith('数量_')) {
+          const areaName = key.replace('数量_', '')
+          const qty = parseInt(item.custom_fields[key]) || 0
+          if (qty > 0) {
+            areas.push({ area: areaName, quantity: qty })
+          }
+        }
+      })
+      return areas
     },
     loadColumnSettings() {
       try {
@@ -984,6 +1009,23 @@ export default {
 
   .field-highlight-category .cell-value {
     color: #ff4d4f;
+  }
+
+  /* 区域库存单元格样式 */
+  .area-quantity-cell {
+    background: #e6f7ff !important;
+    border: 1px solid #91d5ff;
+  }
+
+  .area-quantity-cell .cell-label {
+    color: #1890ff;
+    font-size: 8px;
+  }
+
+  .area-quantity-cell .cell-value.area-quantity {
+    color: #096dd9;
+    font-weight: 600;
+    font-size: 12px;
   }
 
   :deep(.action-column) {

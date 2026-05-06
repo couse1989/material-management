@@ -594,47 +594,58 @@ def delete_material(material_id):
     conn.close()
     return jsonify({'message': '删除成功'})
 
-# 入库出库
+# 入库出库 - 按区域分别管理库存
 @app.route('/api/materials/<int:material_id>/inbound', methods=['POST'])
 @login_required
 def inbound_material(material_id):
     data = request.json
     quantity = data.get('quantity')
+    storage_area = data.get('storage_area', '')
+    remark = data.get('remark', '')
+
     if not quantity or quantity <= 0:
         return jsonify({'error': '请输入有效的入库数量'}), 400
+    if not storage_area:
+        return jsonify({'error': '请选择存放区域'}), 400
+
     operator = session.get('username', '未知用户')
-    remark = data.get('remark', '')
-    storage_area = data.get('storage_area', '')
-    
+
     conn = get_db()
     material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
-    
+
     if not material:
         return jsonify({'error': '物资不存在'}), 404
-    
-    # 获取当前数量（使用中文"数量"匹配前端字段名）
+
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('数量', 0))
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
 
-    # 更新数量
-    new_quantity = current_quantity + quantity
-    custom_fields['数量'] = new_quantity
+    # 获取区域库存字段名（如：数量_A区）
+    area_quantity_key = f'数量_{storage_area}'
+    current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
 
-    # 更新存放区域
-    if storage_area:
-        custom_fields['存放区域'] = storage_area
+    # 更新区域数量
+    new_area_quantity = current_area_quantity + quantity
+    custom_fields[area_quantity_key] = new_area_quantity
+
+    # 同时更新总数量（所有区域的合计）
+    total_quantity = 0
+    for key, value in custom_fields.items():
+        if key.startswith('数量_') and key != area_quantity_key:
+            try:
+                total_quantity += int(value) if value else 0
+            except:
+                pass
+    total_quantity += new_area_quantity
+    custom_fields['数量'] = total_quantity
+
+    # 更新当前存放区域（用于显示）
+    custom_fields['存放区域'] = storage_area
 
     conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
                 (json.dumps(custom_fields), material_id))
 
-    # 获取物资名称用于日志
-    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
-
-    # 备注中附加存放区域信息
-    log_remark = remark
-    if storage_area:
-        log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
-
+    # 记录日志
+    log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
@@ -642,52 +653,64 @@ def inbound_material(material_id):
     )
     conn.commit()
     conn.close()
-    
-    return jsonify({'message': '入库成功', 'new_quantity': new_quantity})
+
+    return jsonify({'message': '入库成功', 'new_quantity': new_area_quantity, 'total_quantity': total_quantity})
 
 @app.route('/api/materials/<int:material_id>/outbound', methods=['POST'])
 @login_required
 def outbound_material(material_id):
     data = request.json
     quantity = data.get('quantity')
+    storage_area = data.get('storage_area', '')
+    remark = data.get('remark', '')
+
     if not quantity or quantity <= 0:
         return jsonify({'error': '请输入有效的出库数量'}), 400
+    if not storage_area:
+        return jsonify({'error': '请选择存放区域'}), 400
+
     operator = session.get('username', '未知用户')
-    remark = data.get('remark', '')
-    storage_area = data.get('storage_area', '')
-    
+
     conn = get_db()
     material = conn.execute('SELECT * FROM materials WHERE id = ?', (material_id,)).fetchone()
-    
+
     if not material:
         return jsonify({'error': '物资不存在'}), 404
-    
-    # 获取当前数量（使用中文"数量"匹配前端字段名）
+
     custom_fields = json.loads(material['custom_fields']) if material['custom_fields'] else {}
-    current_quantity = int(custom_fields.get('数量', 0))
-    
-    if current_quantity < quantity:
-        return jsonify({'error': '库存不足'}), 400
-    
-    # 更新数量
-    new_quantity = current_quantity - quantity
-    custom_fields['数量'] = new_quantity
-    
-    # 更新存放区域
-    if storage_area:
-        custom_fields['存放区域'] = storage_area
-    
+    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
+
+    # 获取区域库存字段名
+    area_quantity_key = f'数量_{storage_area}'
+    current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
+
+    # 检查该区域库存是否充足
+    if current_area_quantity < quantity:
+        return jsonify({'error': f'{storage_area}库存不足，当前库存: {current_area_quantity}'}), 400
+
+    # 更新区域数量
+    new_area_quantity = current_area_quantity - quantity
+    custom_fields[area_quantity_key] = new_area_quantity
+
+    # 同时更新总数量
+    total_quantity = 0
+    for key, value in custom_fields.items():
+        if key.startswith('数量_') and key != area_quantity_key:
+            try:
+                total_quantity += int(value) if value else 0
+            except:
+                pass
+    total_quantity += new_area_quantity
+    custom_fields['数量'] = total_quantity
+
+    # 更新当前存放区域
+    custom_fields['存放区域'] = storage_area
+
     conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
                 (json.dumps(custom_fields), material_id))
-    
-    # 获取物资名称用于日志
-    material_name = custom_fields.get('物资名称', f'物资#{material_id}')
-    
-    # 备注中附加存放区域信息
-    log_remark = remark
-    if storage_area:
-        log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
-    
+
+    # 记录日志
+    log_remark = f'{remark} [存放区域: {storage_area}]' if remark else f'存放区域: {storage_area}'
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
@@ -695,8 +718,8 @@ def outbound_material(material_id):
     )
     conn.commit()
     conn.close()
-    
-    return jsonify({'message': '出库成功', 'new_quantity': new_quantity})
+
+    return jsonify({'message': '出库成功', 'new_quantity': new_area_quantity, 'total_quantity': total_quantity})
 
 # 日志
 @app.route('/api/logs/operations', methods=['GET'])
