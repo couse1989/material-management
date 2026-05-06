@@ -16,8 +16,8 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-button type="primary" @click="showAddDialog = true" :icon="Setting">
-              添加物资
+            <el-button type="primary" @click="showAddDialog = true">
+              <el-icon><Plus /></el-icon>添加物资
             </el-button>
             <el-button
               type="danger"
@@ -35,7 +35,9 @@
             >
               <el-button type="warning">导入Excel</el-button>
             </el-upload>
-            <el-button @click="openColumnSettings" :icon="Setting" circle title="列设置" />
+            <el-button @click="openColumnSettings" title="列设置">
+              <el-icon><Setting /></el-icon>列设置
+            </el-button>
           </div>
         </div>
       </template>
@@ -111,14 +113,17 @@
               </el-button>
             </div>
           </div>
-          <!-- 字段信息：紧凑网格布局，图片嵌入右下角 -->
+          <!-- 字段信息：智能布局，内容多的占满行，内容少的并排，图片右下角 -->
           <div class="card-body">
-            <div class="card-grid" :class="{ 'has-image': item.image }">
+            <div class="card-grid-smart" :class="{ 'has-image': item.image }">
               <div 
-                class="card-cell" 
                 v-for="field in displayedFields" 
                 :key="field.id"
-                :class="getFieldClass(field.field_name)"
+                class="card-cell"
+                :class="[
+                  getFieldClass(field.field_name),
+                  getCellSizeClass(getCustomFieldValue(item, field.field_name))
+                ]"
               >
                 <span class="cell-label">{{ field.field_name }}</span>
                 <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
@@ -265,12 +270,12 @@
 
 <script>
 import axios from 'axios'
-import { Search, Setting, Rank, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Setting, Rank, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
 export default {
   name: 'Inventory',
-  components: { Search, Setting, Rank, Edit, Delete, draggable },
+  components: { Search, Setting, Rank, Edit, Delete, Plus, draggable },
   data() {
     return {
       materials: [],
@@ -356,6 +361,20 @@ export default {
       if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'field-highlight-date'
       if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'field-highlight-category'
       return ''
+    },
+    // 根据内容长度判断单元格大小
+    getCellSizeClass(value) {
+      const str = String(value || '')
+      // 内容超过6个字符或包含换行/特殊字符，占满整行
+      if (str.length > 6 || str.includes('\n') || str.includes('，') || str.includes(',')) {
+        return 'cell-full'
+      }
+      // 内容超过3个字符，占2列
+      if (str.length > 3) {
+        return 'cell-half'
+      }
+      // 短内容占1列
+      return 'cell-small'
     },
     loadColumnSettings() {
       try {
@@ -810,28 +829,28 @@ export default {
     margin: 0;
   }
 
-  /* 嵌入网格的小图片 */
+  /* 嵌入网格的小图片 - 更小 */
   .card-image-cell {
-    grid-row: span 2;
-    padding: 4px !important;
+    grid-row: span 1;
+    padding: 2px !important;
     background: #f5f5f5 !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 60px;
+    min-height: 36px;
+    max-height: 40px;
   }
 
   .embedded-image {
     width: 100%;
     height: 100%;
-    min-height: 50px;
-    max-height: 70px;
-    border-radius: 4px;
+    max-height: 36px;
+    border-radius: 3px;
     object-fit: cover;
   }
 
   .embedded-image :deep(img) {
-    border-radius: 4px;
+    border-radius: 3px;
   }
 
   /* 卡片内容区：紧凑网格布局 */
@@ -839,32 +858,37 @@ export default {
     padding: 0;
   }
 
-  .card-grid {
+  /* 智能网格布局 */
+  .card-grid-smart {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-  }
-
-  /* 有图片时的网格布局 - 右下角留给图片 */
-  .card-grid.has-image {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
   }
 
   /* 单元格样式 - 超紧凑 */
   .card-cell {
     display: flex;
     flex-direction: column;
-    padding: 4px 6px;
-    border-radius: 4px;
+    padding: 3px 5px;
+    border-radius: 3px;
     background: #fafafa;
     min-height: 0;
     overflow: hidden;
   }
 
-  /* 内容少的字段可以跨列显示 */
-  .card-cell:has(.cell-value:empty),
-  .card-cell .cell-value:empty {
-    display: none;
+  /* 小内容单元格 - 占1列 */
+  .card-cell.cell-small {
+    grid-column: span 1;
+  }
+
+  /* 中等内容单元格 - 占2列 */
+  .card-cell.cell-half {
+    grid-column: span 2;
+  }
+
+  /* 大内容单元格 - 占满整行 */
+  .card-cell.cell-full {
+    grid-column: 1 / -1;
   }
 
   .cell-label {
