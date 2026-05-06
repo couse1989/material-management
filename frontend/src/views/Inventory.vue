@@ -770,6 +770,8 @@ export default {
     flex: 1;
     min-width: 0;
     margin: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
   }
 
   .header-actions .el-button.el-button--circle {
@@ -782,6 +784,14 @@ export default {
 
   .header-actions .el-upload .el-button {
     width: 100% !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* 按钮内图标和文字 */
+  .header-actions .el-button .el-icon {
+    font-size: 12px;
+    margin-right: 2px;
   }
 
   /* 卡片视图整体优化 - 更紧凑 */
