@@ -111,18 +111,9 @@
               </el-button>
             </div>
           </div>
-          <!-- 图片 -->
-          <div v-if="item.image" class="card-image">
-            <el-image
-              :src="getImageUrl(item.image)"
-              :preview-src-list="[getImageUrl(item.image)]"
-              style="width: 100%;"
-              fit="cover"
-            />
-          </div>
-          <!-- 字段信息：紧凑网格布局 -->
+          <!-- 字段信息：紧凑网格布局，图片嵌入右下角 -->
           <div class="card-body">
-            <div class="card-grid">
+            <div class="card-grid" :class="{ 'has-image': item.image }">
               <div 
                 class="card-cell" 
                 v-for="field in displayedFields" 
@@ -131,6 +122,15 @@
               >
                 <span class="cell-label">{{ field.field_name }}</span>
                 <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
+              </div>
+              <!-- 小图片嵌入网格右下角 -->
+              <div v-if="item.image" class="card-cell card-image-cell">
+                <el-image
+                  :src="getImageUrl(item.image)"
+                  :preview-src-list="[getImageUrl(item.image)]"
+                  fit="cover"
+                  class="embedded-image"
+                />
               </div>
             </div>
           </div>
@@ -810,16 +810,28 @@ export default {
     margin: 0;
   }
 
-  /* 卡片图片优化 - 更小 */
-  .card-image {
-    margin: 0 -12px 8px -12px;
-    border-radius: 4px;
-    overflow: hidden;
+  /* 嵌入网格的小图片 */
+  .card-image-cell {
+    grid-row: span 2;
+    padding: 4px !important;
+    background: #f5f5f5 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
   }
 
-  .card-image .el-image {
-    height: 80px !important;
-    width: 100% !important;
+  .embedded-image {
+    width: 100%;
+    height: 100%;
+    min-height: 50px;
+    max-height: 70px;
+    border-radius: 4px;
+    object-fit: cover;
+  }
+
+  .embedded-image :deep(img) {
+    border-radius: 4px;
   }
 
   /* 卡片内容区：紧凑网格布局 */
@@ -829,8 +841,13 @@ export default {
 
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 4px;
+  }
+
+  /* 有图片时的网格布局 - 右下角留给图片 */
+  .card-grid.has-image {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   /* 单元格样式 - 超紧凑 */
@@ -841,6 +858,13 @@ export default {
     border-radius: 4px;
     background: #fafafa;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  /* 内容少的字段可以跨列显示 */
+  .card-cell:has(.cell-value:empty),
+  .card-cell .cell-value:empty {
+    display: none;
   }
 
   .cell-label {
