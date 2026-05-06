@@ -764,65 +764,74 @@ def import_excel():
     if 'file' not in request.files:
         return jsonify({'error': '没有上传文件'}), 400
     
-    file = request.files['file']
-    df = pd.read_excel(file)
-    
-    conn = get_db()
-    
-    # 获取现有字段定义
-    existing_fields = conn.execute('SELECT field_name FROM field_definitions').fetchall()
-    existing_field_names = [f['field_name'] for f in existing_fields]
-    
-    # 自动创建不存在的字段
-    for col in df.columns:
-        col_str = str(col).strip()
-        if col_str == 'ID' or col_str == '图片':
-            continue
-        if col_str not in existing_field_names:
-            # 判断字段类型
-            field_type = 'text'
-            sample_value = df[col].dropna().iloc[0] if not df[col].dropna().empty else ''
-            if isinstance(sample_value, (int, float)):
-                field_type = 'number'
-            
-            conn.execute('INSERT INTO field_definitions (field_name, field_type) VALUES (?, ?)', 
-                         (col_str, field_type))
-            existing_field_names.append(col_str)
-    
-    conn.commit()
-    
-    # 导入数据
-    for _, row in df.iterrows():
-        custom_fields = {}
+    try:
+        file = request.files['file']
+        df = pd.read_excel(file)
+        
+        conn = get_db()
+        
+        # 获取现有字段定义
+        existing_fields = conn.execute('SELECT field_name FROM field_definitions').fetchall()
+        existing_field_names = [f['field_name'] for f in existing_fields]
+        
+        # 自动创建不存在的字段
         for col in df.columns:
             col_str = str(col).strip()
             if col_str == 'ID' or col_str == '图片':
                 continue
-            custom_fields[col_str] = str(row[col]) if pd.notna(row[col]) else ''
+            if col_str not in existing_field_names:
+                # 判断字段类型
+                field_type = 'text'
+                try:
+                    if not df[col].dropna().empty:
+                        sample_value = df[col].dropna().iloc[0]
+                        if isinstance(sample_value, (int, float)):
+                            field_type = 'number'
+                except:
+                    pass
+                
+                conn.execute('INSERT INTO field_definitions (field_name, field_type) VALUES (?, ?)', 
+                             (col_str, field_type))
+                existing_field_names.append(col_str)
         
-        image = ''
-        if '图片' in df.columns and pd.notna(row['图片']):
-            image = str(row['图片'])
+        conn.commit()
         
+        # 导入数据
+        for _, row in df.iterrows():
+            custom_fields = {}
+            for col in df.columns:
+                col_str = str(col).strip()
+                if col_str == 'ID' or col_str == '图片':
+                    continue
+                value = row[col]
+                custom_fields[col_str] = str(value) if pd.notna(value) else ''
+            
+            image = ''
+            if '图片' in df.columns and pd.notna(row['图片']):
+                image = str(row['图片'])
+            
+            conn.execute(
+                'INSERT INTO materials (image, custom_fields) VALUES (?, ?)',
+                (image, json.dumps(custom_fields, ensure_ascii=False))
+            )
+        
+        conn.commit()
+        
+        # 记录导入日志
+        operator = session['username']
+        conn = get_db()
         conn.execute(
-            'INSERT INTO materials (image, custom_fields) VALUES (?, ?)',
-            (image, json.dumps(custom_fields))
+            '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            ('import_excel', None, None, None, operator, f'导入{len(df)}条记录')
         )
-    
-    conn.commit()
-    
-    # 记录导入日志
-    operator = session['username']
-    conn = get_db()
-    conn.execute(
-        '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
-           VALUES (?, ?, ?, ?, ?, ?)''',
-        ('import_excel', None, None, None, operator, f'导入{len(df)}条记录')
-    )
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'message': f'成功导入 {len(df)} 条记录'})
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': f'成功导入{len(df)}条记录'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'导入失败: {str(e)}'}), 500
 
 # 备份还原（仅管理员）
 @app.route('/api/backup', methods=['POST'])

@@ -720,50 +720,6 @@ export default {
 }
 
 /* 响应式布局 - 手机 */
-@media (max-width: 768px) {
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .header-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-  }
-  
-  /* 搜索框占满整行 */
-  .header-actions .el-input {
-    width: 100% !important;
-    flex: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  
-  /* 其他按钮统一2个一行 */
-  .header-actions .el-button,
-  .header-actions .el-upload {
-    width: calc(50% - 4px) !important;
-    flex: none !important;
-    min-width: auto;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-  }
-  
-  .header-actions .el-upload {
-    display: block !important;
-  }
-  
-  .header-actions .el-upload .el-button {
-    width: 100% !important;
-  }
-  
-  /* 隐藏图片列（移动端无需显示小图） */
-  :deep(.image-column) {
-    display: none;
-  }
-  
 /* 响应式布局 - 手机 */
 @media (max-width: 768px) {
   .card-header {
@@ -909,7 +865,6 @@ export default {
     white-space: normal;
     word-break: break-all;
   }
-}
   
   /* 分页组件适配 */
   :deep(.el-pagination) {
