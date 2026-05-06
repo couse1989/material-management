@@ -386,7 +386,6 @@ export default {
     font-size: 12px;
   }
   
-  /* 表格横向滚动 */
   :deep(.el-table) {
     font-size: 12px;
   }
