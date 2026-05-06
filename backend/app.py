@@ -599,8 +599,10 @@ def delete_material(material_id):
 @login_required
 def inbound_material(material_id):
     data = request.json
-    quantity = data['quantity']
-    operator = session['username']
+    quantity = data.get('quantity')
+    if not quantity or quantity <= 0:
+        return jsonify({'error': '请输入有效的入库数量'}), 400
+    operator = session.get('username', '未知用户')
     remark = data.get('remark', '')
     storage_area = data.get('storage_area', '')
     
@@ -647,8 +649,10 @@ def inbound_material(material_id):
 @login_required
 def outbound_material(material_id):
     data = request.json
-    quantity = data['quantity']
-    operator = session['username']
+    quantity = data.get('quantity')
+    if not quantity or quantity <= 0:
+        return jsonify({'error': '请输入有效的出库数量'}), 400
+    operator = session.get('username', '未知用户')
     remark = data.get('remark', '')
     storage_area = data.get('storage_area', '')
     

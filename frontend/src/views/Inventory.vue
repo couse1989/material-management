@@ -511,7 +511,20 @@ export default {
     },
     getCustomFieldValue(row, fieldName) {
       if (row.custom_fields && typeof row.custom_fields === 'object') {
-        return row.custom_fields[fieldName] ?? '-'
+        const value = row.custom_fields[fieldName]
+        if (value === null || value === undefined || value === '') return '-'
+        // 处理数字：如果是整数，去掉小数点后的.0
+        if (typeof value === 'number') {
+          return Number.isInteger(value) ? value.toString() : value.toString()
+        }
+        // 处理字符串形式的数字
+        if (typeof value === 'string' && !isNaN(value) && value !== '') {
+          const num = parseFloat(value)
+          if (!isNaN(num) && Number.isInteger(num)) {
+            return num.toString()
+          }
+        }
+        return value
       }
       return '-'
     },
