@@ -8,7 +8,7 @@
             <el-input
               v-model="searchKeyword"
               placeholder="搜索物资..."
-              style="width: 200px; margin-right: 10px;"
+              style="width: 200px;"
               clearable
               @input="handleSearch"
             >
@@ -16,27 +16,26 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-button @click="openColumnSettings" :icon="Setting" style="margin-right: 10px;">
-              列设置
+            <el-button type="primary" @click="showAddDialog = true" :icon="Setting">
+              添加物资
             </el-button>
-            <el-button type="primary" @click="showAddDialog = true">添加物资</el-button>
             <el-button
               type="danger"
               @click="batchDelete"
               :disabled="selectedIds.length === 0"
-              style="margin-left: 10px;"
             >
               批量删除 ({{ selectedIds.length }})
             </el-button>
-            <el-button type="success" @click="exportExcel" style="margin-left: 10px;">导出Excel</el-button>
+            <el-button type="success" @click="exportExcel">导出Excel</el-button>
             <el-upload
-              style="display: inline-block; margin-left: 10px;"
+              style="display: inline-block;"
               :auto-upload="true"
               :show-file-list="false"
               :http-request="importExcel"
             >
               <el-button type="warning">导入Excel</el-button>
             </el-upload>
+            <el-button @click="openColumnSettings" :icon="Setting" circle title="列设置" />
           </div>
         </div>
       </template>
@@ -100,6 +99,18 @@
       <!-- 移动端：卡片视图 -->
       <div v-else class="card-view">
         <el-card v-for="item in displayedMaterials" :key="item.id" class="data-card" shadow="hover">
+          <!-- 卡片头部：ID + 操作按钮 -->
+          <div class="card-header-mini">
+            <span class="card-id">#{{ item.id }}</span>
+            <div class="card-actions-mini">
+              <el-button size="small" text @click="editMaterial(item)">
+                <el-icon><Edit /></el-icon>
+              </el-button>
+              <el-button size="small" text type="danger" @click="deleteMaterial(item.id)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+          </div>
           <!-- 图片 -->
           <div v-if="item.image" class="card-image">
             <el-image
@@ -109,27 +120,19 @@
               fit="cover"
             />
           </div>
-          <!-- 字段信息：2列布局 -->
+          <!-- 字段信息：紧凑网格布局 -->
           <div class="card-body">
-            <!-- 每行2个字段 -->
-            <div class="card-row" v-for="(row, rowIndex) in getFieldRows(item)" :key="rowIndex">
-              <div class="card-item compact" v-for="field in row" :key="field.id">
-                <span class="card-label">{{ field.field_name }}</span>
-                <span class="card-value">{{ field.value }}</span>
+            <div class="card-grid">
+              <div 
+                class="card-cell" 
+                v-for="field in displayedFields" 
+                :key="field.id"
+                :class="getFieldClass(field.field_name)"
+              >
+                <span class="cell-label">{{ field.field_name }}</span>
+                <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
               </div>
             </div>
-            <!-- ID单独一行，占满宽度 -->
-            <div class="card-row">
-              <div class="card-item compact" style="grid-column: 1 / -1;">
-                <span class="card-label">ID</span>
-                <span class="card-value">{{ item.id }}</span>
-              </div>
-            </div>
-          </div>
-          <!-- 操作按钮 -->
-          <div class="card-actions">
-            <el-button size="small" @click="editMaterial(item)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteMaterial(item.id)">删除</el-button>
           </div>
         </el-card>
       </div>
@@ -262,12 +265,12 @@
 
 <script>
 import axios from 'axios'
-import { Search, Setting, Rank } from '@element-plus/icons-vue'
+import { Search, Setting, Rank, Edit, Delete } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 
 export default {
   name: 'Inventory',
-  components: { Search, Setting, Rank, draggable },
+  components: { Search, Setting, Rank, Edit, Delete, draggable },
   data() {
     return {
       materials: [],
@@ -343,27 +346,16 @@ export default {
     window.removeEventListener('resize', this.handleResize)
   },
   methods: {
-    // 将字段按2个一组分组，用于移动端双列显示
-    getFieldRows(item) {
-      const fields = this.displayedFields || []
-      const rows = []
-      for (let i = 0; i < fields.length; i += 2) {
-        const row = []
-        // 第一个字段
-        row.push({
-          ...fields[i],
-          value: this.getCustomFieldValue(item, fields[i].field_name)
-        })
-        // 第二个字段（如果存在）
-        if (i + 1 < fields.length) {
-          row.push({
-            ...fields[i + 1],
-            value: this.getCustomFieldValue(item, fields[i + 1].field_name)
-          })
-        }
-        rows.push(row)
-      }
-      return rows
+    // 获取字段样式类名
+    getFieldClass(fieldName) {
+      const name = fieldName.toLowerCase()
+      if (name.includes('名称') || name.includes('name')) return 'field-highlight-primary'
+      if (name.includes('数量') || name.includes('quantity') || name.includes('库存')) return 'field-highlight-number'
+      if (name.includes('价格') || name.includes('金额') || name.includes('price') || name.includes('cost')) return 'field-highlight-money'
+      if (name.includes('状态') || name.includes('status')) return 'field-highlight-status'
+      if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'field-highlight-date'
+      if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'field-highlight-category'
+      return ''
     },
     loadColumnSettings() {
       try {
@@ -617,6 +609,18 @@ export default {
   gap: 8px;
 }
 
+.header-actions .el-input {
+  margin-right: 4px;
+}
+
+.header-actions .el-button {
+  margin: 0;
+}
+
+.header-actions .el-upload {
+  margin: 0;
+}
+
 .pagination-container {
   margin-top: 20px;
   display: flex;
@@ -720,171 +724,240 @@ export default {
 }
 
 /* 响应式布局 - 手机 */
-/* 响应式布局 - 手机 */
 @media (max-width: 768px) {
   .card-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
-  
+
   .header-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     width: 100%;
   }
-  
+
   /* 搜索框占满整行 */
   .header-actions .el-input {
     width: 100% !important;
     flex: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+    margin: 0 !important;
   }
-  
-  /* 其他按钮统一2个一行 */
-  .header-actions .el-button,
+
+  /* 按钮布局：主要操作占1行，次要操作紧凑排列 */
+  .header-actions .el-button:not(.el-button--circle),
   .header-actions .el-upload {
-    width: calc(50% - 4px) !important;
-    flex: none !important;
-    min-width: auto;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+    flex: 1;
+    min-width: 0;
+    margin: 0 !important;
   }
-  
+
+  .header-actions .el-button.el-button--circle {
+    flex: none;
+  }
+
   .header-actions .el-upload {
     display: block !important;
   }
-  
+
   .header-actions .el-upload .el-button {
     width: 100% !important;
   }
-  
-  /* 卡片视图整体优化 */
+
+  /* 卡片视图整体优化 - 更紧凑 */
   .card-view {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 0 4px;
+    gap: 8px;
+    padding: 0;
   }
-  
+
   .data-card {
     margin-bottom: 0;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
   }
-  
-  /* 卡片图片优化 */
+
+  .data-card :deep(.el-card__body) {
+    padding: 8px 12px;
+  }
+
+  /* 卡片头部 - ID和操作按钮 */
+  .card-header-mini {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 8px;
+  }
+
+  .card-id {
+    font-size: 11px;
+    color: #909399;
+    font-weight: 500;
+    font-family: monospace;
+  }
+
+  .card-actions-mini {
+    display: flex;
+    gap: 4px;
+  }
+
+  .card-actions-mini .el-button {
+    padding: 4px;
+    margin: 0;
+  }
+
+  /* 卡片图片优化 - 更小 */
   .card-image {
-    margin: -20px -20px 12px -20px;
-    border-radius: 8px 8px 0 0;
+    margin: 0 -12px 8px -12px;
+    border-radius: 4px;
     overflow: hidden;
   }
-  
+
   .card-image .el-image {
-    height: 100px !important;
+    height: 80px !important;
     width: 100% !important;
   }
-  
-  /* 卡片内容区：2列网格布局 */
+
+  /* 卡片内容区：紧凑网格布局 */
   .card-body {
+    padding: 0;
+  }
+
+  .card-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    padding: 8px 0;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
   }
-  
-  /* 每行2个字段 */
-  .card-row {
-    display: contents; /* 让子元素直接参与grid布局 */
-  }
-  
-  /* 字段样式：更小字体、更紧凑 */
-  .card-item.compact {
+
+  /* 单元格样式 - 超紧凑 */
+  .card-cell {
     display: flex;
     flex-direction: column;
-    padding: 6px 12px;
-    border-bottom: 1px solid #f5f5f5;
-    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: #fafafa;
+    min-height: 0;
   }
-  
-  .card-item.compact .card-label {
-    font-weight: 600;
+
+  .cell-label {
+    font-size: 9px;
     color: #909399;
-    font-size: 10px;
-    margin-bottom: 2px;
-    min-width: auto;
-    flex-shrink: 0;
+    margin-bottom: 1px;
+    line-height: 1.2;
   }
-  
-  .card-item.compact .card-value {
-    flex: 1;
+
+  .cell-value {
+    font-size: 11px;
     color: #303133;
+    line-height: 1.3;
     word-break: break-all;
-    font-size: 12px;
-    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
-  
-  /* 操作按钮区域 */
-  .card-actions {
-    display: flex;
-    gap: 8px;
-    padding: 12px 20px 16px 20px;
-    justify-content: flex-end;
-    border-top: 1px solid #f0f0f0;
-    margin-top: 4px;
+
+  /* 字段高亮样式 */
+  .field-highlight-primary {
+    background: #ecf5ff;
   }
-  
-  .card-actions .el-button {
-    flex: 1;
-    max-width: 120px;
-    font-size: 12px;
-    padding: 6px 12px;
+
+  .field-highlight-primary .cell-value {
+    color: #409eff;
+    font-weight: 600;
   }
-  
+
+  .field-highlight-number {
+    background: #f0f9ff;
+  }
+
+  .field-highlight-number .cell-value {
+    color: #1890ff;
+    font-weight: 600;
+  }
+
+  .field-highlight-money {
+    background: #fff7e6;
+  }
+
+  .field-highlight-money .cell-value {
+    color: #fa8c16;
+    font-weight: 600;
+  }
+
+  .field-highlight-status {
+    background: #f6ffed;
+  }
+
+  .field-highlight-status .cell-value {
+    color: #52c41a;
+    font-weight: 600;
+  }
+
+  .field-highlight-date {
+    background: #f9f0ff;
+  }
+
+  .field-highlight-date .cell-value {
+    color: #722ed1;
+  }
+
+  .field-highlight-category {
+    background: #fff2f0;
+  }
+
+  .field-highlight-category .cell-value {
+    color: #ff4d4f;
+  }
+
   :deep(.action-column) {
     width: 120px !important;
     min-width: 120px;
   }
-  
+
   :deep(.action-column .cell) {
     padding: 4px 2px;
   }
-  
+
   :deep(.action-column .el-button) {
     padding: 4px 8px;
     font-size: 12px;
   }
-  
+
   :deep(.el-table) {
     font-size: 12px;
   }
-  
+
   :deep(.el-table .cell) {
     padding: 6px 4px;
     white-space: normal;
     word-break: break-all;
   }
-  
+
   /* 分页组件适配 */
   :deep(.el-pagination) {
     justify-content: center;
     flex-wrap: wrap;
     gap: 5px;
   }
-  
+
   :deep(.el-pagination .el-pagination__total),
   :deep(.el-pagination .el-pagination__sizes) {
     margin-right: 0;
   }
-  
+
   /* 对话框适配 */
   :deep(.el-dialog) {
     width: 95% !important;
     max-width: 600px;
     margin: 10px auto !important;
   }
-  
+
   /* 表单适配 */
   :deep(.el-form-item__label) {
     float: none;
@@ -892,7 +965,7 @@ export default {
     text-align: left;
     padding: 0 0 8px;
   }
-  
+
   :deep(.el-form-item__content) {
     margin-left: 0 !important;
   }
