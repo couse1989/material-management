@@ -621,6 +621,16 @@ def inbound_material(material_id):
 
     # 获取区域库存字段名（如：数量_A区）
     area_quantity_key = f'数量_{storage_area}'
+
+    # 兼容旧数据：如果没有区域字段，检查物资是否只有旧的"数量"字段且无任何区域字段
+    has_any_area_field = any(k.startswith('数量_') for k in custom_fields)
+    if not has_any_area_field and area_quantity_key not in custom_fields:
+        # 旧数据迁移：把原"数量"视为当前区域数量的初始值（仅当存放区域与选定区域一致时）
+        old_quantity = int(custom_fields.get('数量', 0))
+        old_area = custom_fields.get('存放区域', '')
+        if old_area == storage_area and old_quantity > 0:
+            custom_fields[area_quantity_key] = old_quantity
+
     current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
 
     # 更新区域数量
@@ -682,6 +692,16 @@ def outbound_material(material_id):
 
     # 获取区域库存字段名
     area_quantity_key = f'数量_{storage_area}'
+
+    # 兼容旧数据：如果没有区域字段，检查是否只有旧的"数量"字段
+    has_any_area_field = any(k.startswith('数量_') for k in custom_fields)
+    if not has_any_area_field and area_quantity_key not in custom_fields:
+        old_quantity = int(custom_fields.get('数量', 0))
+        old_area = custom_fields.get('存放区域', '')
+        if old_area == storage_area and old_quantity > 0:
+            # 旧数据迁移：把原"数量"字段迁移为区域数量
+            custom_fields[area_quantity_key] = old_quantity
+
     current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
 
     # 检查该区域库存是否充足

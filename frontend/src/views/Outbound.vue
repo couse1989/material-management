@@ -82,7 +82,7 @@ export default {
         const areaMaterials = this.materials
           .filter(m => {
             const areaQty = this.getAreaQuantity(m, area)
-            return areaQty > 0 // 只显示有库存的
+            return areaQty > 0
           })
           .map(m => ({
             id: m.id,
@@ -93,11 +93,45 @@ export default {
 
         if (areaMaterials.length > 0) {
           groups.push({
-            area: `${area} (${areaMaterials.length}种物资)`,
+            area: `${area}`,
             materials: areaMaterials
           })
         }
       })
+
+      // 兼容旧数据：没有区域字段的物资也显示（按存放区域或全部）
+      const oldFormatMaterials = this.materials
+        .filter(m => !this.hasAreaData(m) && this.getMaterialQuantity(m) > 0)
+        .map(m => ({
+          id: m.id,
+          name: this.getMaterialName(m),
+          quantity: this.getMaterialQuantity(m),
+          raw: m
+        }))
+
+      if (oldFormatMaterials.length > 0) {
+        // 按旧数据的存放区域分组
+        const areaMap = {}
+        oldFormatMaterials.forEach(m => {
+          const area = m.raw.custom_fields?.['存放区域'] || '未分类'
+          if (!areaMap[area]) areaMap[area] = []
+          areaMap[area].push(m)
+        })
+        Object.entries(areaMap).forEach(([area, mats]) => {
+          // 如果这个区域已经在新格式分组里，就追加进去
+          const existingGroup = groups.find(g => g.area === area)
+          if (existingGroup) {
+            // 避免重复
+            mats.forEach(m => {
+              if (!existingGroup.materials.find(em => em.id === m.id)) {
+                existingGroup.materials.push(m)
+              }
+            })
+          } else {
+            groups.push({ area, materials: mats })
+          }
+        })
+      }
 
       return groups
     }
@@ -147,12 +181,24 @@ export default {
       }
       return 0
     },
-    // 获取物资在指定区域的库存
+    // 判断物资是否有区域数量字段（新格式）
+    hasAreaData(item) {
+      if (!item.custom_fields) return false
+      return Object.keys(item.custom_fields).some(k => k.startsWith('数量_'))
+    },
+    // 获取物资在指定区域的库存（兼容旧格式）
     getAreaQuantity(item, area) {
       if (!item.custom_fields) return 0
+      // 新格式：数量_区域名
       const areaKey = `数量_${area}`
-      const qty = item.custom_fields[areaKey]
-      return qty ? (parseInt(qty) || 0) : 0
+      if (areaKey in item.custom_fields) {
+        return parseInt(item.custom_fields[areaKey]) || 0
+      }
+      // 旧格式兼容：物资没有任何区域字段，且存放区域匹配
+      if (!this.hasAreaData(item) && item.custom_fields['存放区域'] === area) {
+        return parseInt(item.custom_fields['数量']) || 0
+      }
+      return 0
     },
     onMaterialChange(materialId) {
       // 当选择物资时，自动填充其当前存放区域
