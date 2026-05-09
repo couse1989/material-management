@@ -622,18 +622,19 @@ def inbound_material(material_id):
     # 获取区域库存字段名（如：数量_A区）
     area_quantity_key = f'数量_{storage_area}'
 
-    # 兼容旧数据：如果没有区域字段，检查物资是否只有旧的"数量"字段且无任何区域字段
+    # 兼容旧数据：如果没有任何区域字段，先把旧"数量"迁移到旧"存放区域"对应的区域字段
+    # 注意：不管本次入库到哪个区域，都要先完整迁移旧数据，避免丢失其他区域的历史库存
     has_any_area_field = any(k.startswith('数量_') for k in custom_fields)
-    if not has_any_area_field and area_quantity_key not in custom_fields:
-        # 旧数据迁移：把原"数量"视为当前区域数量的初始值（仅当存放区域与选定区域一致时）
+    if not has_any_area_field:
         old_quantity = int(custom_fields.get('数量', 0))
         old_area = custom_fields.get('存放区域', '')
-        if old_area == storage_area and old_quantity > 0:
-            custom_fields[area_quantity_key] = old_quantity
+        if old_area and old_quantity > 0:
+            old_area_key = f'数量_{old_area}'
+            custom_fields[old_area_key] = old_quantity
 
     current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
 
-    # 更新区域数量
+    # 更新区域数量（叠加，不覆盖其他区域）
     new_area_quantity = current_area_quantity + quantity
     custom_fields[area_quantity_key] = new_area_quantity
 
@@ -648,7 +649,7 @@ def inbound_material(material_id):
     total_quantity += new_area_quantity
     custom_fields['数量'] = total_quantity
 
-    # 更新当前存放区域（用于显示）
+    # 存放区域字段记录本次操作的区域（不影响其他区域数量）
     custom_fields['存放区域'] = storage_area
 
     conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
@@ -693,14 +694,15 @@ def outbound_material(material_id):
     # 获取区域库存字段名
     area_quantity_key = f'数量_{storage_area}'
 
-    # 兼容旧数据：如果没有区域字段，检查是否只有旧的"数量"字段
+    # 兼容旧数据：如果没有任何区域字段，先把旧"数量"迁移到旧"存放区域"对应的区域字段
+    # 注意：不管本次出库从哪个区域，都要先完整迁移旧数据，避免丢失其他区域的历史库存
     has_any_area_field = any(k.startswith('数量_') for k in custom_fields)
-    if not has_any_area_field and area_quantity_key not in custom_fields:
+    if not has_any_area_field:
         old_quantity = int(custom_fields.get('数量', 0))
         old_area = custom_fields.get('存放区域', '')
-        if old_area == storage_area and old_quantity > 0:
-            # 旧数据迁移：把原"数量"字段迁移为区域数量
-            custom_fields[area_quantity_key] = old_quantity
+        if old_area and old_quantity > 0:
+            old_area_key = f'数量_{old_area}'
+            custom_fields[old_area_key] = old_quantity
 
     current_area_quantity = int(custom_fields.get(area_quantity_key, 0))
 
@@ -723,7 +725,7 @@ def outbound_material(material_id):
     total_quantity += new_area_quantity
     custom_fields['数量'] = total_quantity
 
-    # 更新当前存放区域
+    # 存放区域字段记录本次操作的区域
     custom_fields['存放区域'] = storage_area
 
     conn.execute('UPDATE materials SET custom_fields = ? WHERE id = ?',
