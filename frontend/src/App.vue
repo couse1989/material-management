@@ -142,7 +142,23 @@ export default {
     Lock 
   },
   data() {
+    // 从 localStorage 初始化认证状态（解决首次加载时菜单不显示的问题）
+    const userStr = localStorage.getItem('user')
+    let isAdmin = false
+    let currentUser = ''
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        isAdmin = user.is_admin === 1 || user.is_admin === true
+        currentUser = user.username || ''
+      } catch (e) {
+        localStorage.removeItem('user')
+      }
+    }
     return {
+      isAuthenticated: !!userStr,
+      isAdmin,
+      currentUser,
       showChangePasswordDialog: false,
       mobileMenuVisible: false,
       passwordForm: {
@@ -154,17 +170,12 @@ export default {
   computed: {
     activeIndex() {
       return this.$route.path
-    },
-    isAuthenticated() {
-      return localStorage.getItem('user') !== null
-    },
-    isAdmin() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
-      return user.is_admin === 1 || user.is_admin === true
-    },
-    currentUser() {
-      const user = JSON.parse(localStorage.getItem('user') || '{}')
-      return user.username || ''
+    }
+  },
+  watch: {
+    // 路由变化时同步认证状态（修复登录后菜单不显示的 bug）
+    '$route'() {
+      this.syncAuthState()
     }
   },
   async mounted() {
@@ -177,8 +188,13 @@ export default {
             username: res.data.username,
             is_admin: res.data.is_admin
           }))
+          this.isAdmin = res.data.is_admin === 1 || res.data.is_admin === true
+          this.currentUser = res.data.username
         } else {
           localStorage.removeItem('user')
+          this.isAuthenticated = false
+          this.isAdmin = false
+          this.currentUser = ''
         }
       } catch (e) {
         // 忽略同步失败
@@ -186,9 +202,32 @@ export default {
     }
   },
   methods: {
+    syncAuthState() {
+      const userStr = localStorage.getItem('user')
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr)
+          this.isAuthenticated = true
+          this.isAdmin = user.is_admin === 1 || user.is_admin === true
+          this.currentUser = user.username || ''
+        } catch (e) {
+          localStorage.removeItem('user')
+          this.isAuthenticated = false
+          this.isAdmin = false
+          this.currentUser = ''
+        }
+      } else {
+        this.isAuthenticated = false
+        this.isAdmin = false
+        this.currentUser = ''
+      }
+    },
     async handleLogout() {
       await axios.post('/api/logout')
       localStorage.removeItem('user')
+      this.isAuthenticated = false
+      this.isAdmin = false
+      this.currentUser = ''
       this.$router.push('/login')
     },
     async changePassword() {
@@ -207,8 +246,8 @@ export default {
 
 <style>
 body {
-  margin: 0;
-  padding: 0;
+  margin:0;
+  padding:0;
 }
 
 .main-container {
