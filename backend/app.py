@@ -166,6 +166,14 @@ def init_db():
             print("密码: admin123")
             print("请登录后及时修改密码！")
         
+
+        # 迁移：为 login_logs 表添加 status 字段
+        try:
+            c.execute('SELECT status FROM login_logs LIMIT 1')
+        except sqlite3.OperationalError:
+            c.execute("ALTER TABLE login_logs ADD COLUMN status TEXT DEFAULT 'success'")
+            c.execute("UPDATE login_logs SET status = 'success' WHERE status IS NULL")
+
         conn.commit()
         conn.close()
         print(f"数据库初始化成功: {app.config['DATABASE']}")
@@ -231,8 +239,8 @@ def login():
         
         # 记录登录日志
         ip = get_real_ip()
-        conn.execute('INSERT INTO login_logs (username, ip_address) VALUES (?, ?)', 
-                    (username, ip))
+        conn.execute('INSERT INTO login_logs (username, ip_address, status) VALUES (?, ?, ?)', 
+                    (username, ip, 'success'))
         conn.commit()
         conn.close()
         
@@ -242,10 +250,10 @@ def login():
             'is_admin': user['is_admin']
         })
     else:
-        # 记录登录失败日志
+        # 记录登录失败日志到 login_logs
         ip = get_real_ip()
-        conn.execute('INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) VALUES (?, ?, ?, ?, ?, ?)',
-                     ('login_failed', None, username, None, username, f'登录失败，IP: {ip}'))
+        conn.execute('INSERT INTO login_logs (username, ip_address, status) VALUES (?, ?, ?)', 
+                    (username, ip, 'failed'))
         conn.commit()
         conn.close()
         return jsonify({'error': '用户名或密码错误'}), 401
@@ -578,7 +586,17 @@ def delete_materials_batch():
         return jsonify({'error': '请选择要删除的物资'}), 400
     
     conn = get_db()
+    # 先查询要删除的物资名称，用于日志记录
     placeholders = ','.join(['?'] * len(ids))
+    materials = conn.execute(f'SELECT id, custom_fields FROM materials WHERE id IN ({placeholders})', ids).fetchall()
+    
+    operator = session.get('username', '未知用户')
+    for m in materials:
+        cf = json.loads(m['custom_fields']) if m['custom_fields'] else {}
+        material_name = cf.get('物资名称', f'ID_{m["id"]}')
+        conn.execute('INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) VALUES (?, ?, ?, ?, ?, ?)',
+                     ('删除', m['id'], material_name, None, operator, f'批量删除：{material_name}'))
+    
     conn.execute(f'DELETE FROM materials WHERE id IN ({placeholders})', ids)
     conn.commit()
     conn.close()
@@ -589,6 +607,17 @@ def delete_materials_batch():
 @login_required
 def delete_material(material_id):
     conn = get_db()
+    # 先查询要删除的物资名称，用于日志记录
+    material = conn.execute('SELECT custom_fields FROM materials WHERE id = ?', (material_id,)).fetchone()
+    material_name = '未知物资'
+    if material:
+        cf = json.loads(material['custom_fields']) if material['custom_fields'] else {}
+        material_name = cf.get('物资名称', f'ID_{material_id}')
+    
+    operator = session.get('username', '未知用户')
+    conn.execute('INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark) VALUES (?, ?, ?, ?, ?, ?)',
+                 ('删除', material_id, material_name, None, operator, f'删除物资：{material_name}'))
+    
     conn.execute('DELETE FROM materials WHERE id = ?', (material_id,))
     conn.commit()
     conn.close()
@@ -748,7 +777,7 @@ def get_operation_logs():
 @login_required
 def get_login_logs():
     conn = get_db()
-    logs = conn.execute('SELECT * FROM login_logs ORDER BY login_time DESC LIMIT 100').fetchall()
+    logs = conn.execute('SELECT id, username, login_time, ip_address, status FROM login_logs ORDER BY login_time DESC LIMIT 100').fetchall()
     conn.close()
     return jsonify([dict(log) for log in logs])
 

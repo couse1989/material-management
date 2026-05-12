@@ -64,6 +64,13 @@
           <el-table-column prop="username" label="用户名" />
           <el-table-column prop="login_time" label="登录时间" width="180" />
           <el-table-column prop="ip_address" label="IP地址" width="150" />
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="scope">
+              <el-tag :type="scope.row.status === 'success' ? 'success' : 'danger'">
+                {{ scope.row.status === 'success' ? '成功' : '失败' }}
+              </el-tag>
+            </template>
+          </el-table-column>
         </el-table>
         </div>
         
@@ -85,6 +92,14 @@
             <div class="card-item">
               <span class="card-label">IP地址：</span>
               <span class="card-value">{{ item.ip_address }}</span>
+            </div>
+            <div class="card-item">
+              <span class="card-label">状态：</span>
+              <span class="card-value">
+                <el-tag :type="item.status === 'success' ? 'success' : 'danger'">
+                  {{ item.status === 'success' ? '成功' : '失败' }}
+                </el-tag>
+              </span>
             </div>
           </el-card>
         </div>
@@ -121,6 +136,7 @@ export default {
         'edit_material': 'primary',
         'export_excel': 'info',
         'import_excel': 'info',
+        '删除': 'danger',
         'login_failed': 'danger'
       }
       return tagMap[operationType] || 'info'
@@ -132,6 +148,7 @@ export default {
         'edit_material': '编辑物资',
         'export_excel': '导出Excel',
         'import_excel': '导入Excel',
+        '删除': '删除物资',
         'login_failed': '登录失败'
       }
       return textMap[operationType] || operationType
