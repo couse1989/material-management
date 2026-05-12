@@ -385,21 +385,15 @@ export default {
       // 短内容占1列
       return 'cell-small'
     },
-    // 获取各区域库存数量
+    // 获取物资的区域库存（每条记录对应一个区域，直接读取存放区域和数量字段）
     getAreaQuantities(item) {
       if (!item.custom_fields) return []
-      const areas = []
-      // 查找所有以"数量_"开头的字段
-      Object.keys(item.custom_fields).forEach(key => {
-        if (key.startsWith('数量_')) {
-          const areaName = key.replace('数量_', '')
-          const qty = parseInt(item.custom_fields[key]) || 0
-          if (qty > 0) {
-            areas.push({ area: areaName, quantity: qty })
-          }
-        }
-      })
-      return areas
+      const area = item.custom_fields['存放区域']
+      const qty = parseInt(item.custom_fields['数量']) || 0
+      if (area && qty > 0) {
+        return [{ area, quantity: qty }]
+      }
+      return []
     },
     loadColumnSettings() {
       try {

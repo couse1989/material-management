@@ -73,36 +73,29 @@ export default {
     }
   },
   computed: {
-    // 按区域分组的物资列表
+    // 按区域分组的物资列表（去重：同名物资只出现一次，后端按区域独立存储）
     groupedMaterials() {
       const groups = []
 
       // 按区域分组
       this.storageAreas.forEach(area => {
         const areaMaterials = this.materials
-          .filter(m => {
-            const areaQty = this.getAreaQuantity(m, area)
-            // 有区域库存，或存放区域字段就是该区域，或完全没有区域信息（旧数据显示在所有区域）
-            return areaQty > 0 || m.custom_fields?.['存放区域'] === area || !this.hasAreaData(m)
-          })
+          .filter(m => m.custom_fields?.['存放区域'] === area)
           .map(m => ({
             id: m.id,
             name: this.getMaterialName(m),
-            quantity: this.getAreaQuantityDisplay(m, area),
+            quantity: this.getMaterialQuantity(m),
             raw: m
           }))
 
         if (areaMaterials.length > 0) {
-          groups.push({
-            area: `${area}`,
-            materials: areaMaterials
-          })
+          groups.push({ area: `${area}`, materials: areaMaterials })
         }
       })
 
-      // 添加未分类区域（没有区域信息的物资）
+      // 添加未分类区域（无存放区域的物资）
       const uncategorized = this.materials
-        .filter(m => !m.custom_fields?.['存放区域'] && !this.hasAreaData(m))
+        .filter(m => !m.custom_fields?.['存放区域'])
         .map(m => ({
           id: m.id,
           name: this.getMaterialName(m),
@@ -111,10 +104,7 @@ export default {
         }))
 
       if (uncategorized.length > 0) {
-        groups.push({
-          area: `未分类`,
-          materials: uncategorized
-        })
+        groups.push({ area: `未分类`, materials: uncategorized })
       }
 
       // 如果没有任何分组，显示全部
@@ -166,46 +156,19 @@ export default {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       this.form.operator = user.username || ''
     },
+    // 获取物资名称
     getMaterialName(item) {
       if (item.custom_fields && item.custom_fields['物资名称']) {
         return item.custom_fields['物资名称']
       }
       return `物资 #${item.id}`
     },
+    // 获取物资总数量
     getMaterialQuantity(item) {
       if (item.custom_fields && item.custom_fields['数量']) {
         return parseInt(item.custom_fields['数量']) || 0
       }
       return 0
-    },
-    // 判断物资是否有区域数量字段（新格式）
-    hasAreaData(item) {
-      if (!item.custom_fields) return false
-      return Object.keys(item.custom_fields).some(k => k.startsWith('数量_'))
-    },
-    // 获取物资在指定区域的库存（兼容旧格式）
-    getAreaQuantity(item, area) {
-      if (!item.custom_fields) return 0
-      // 新格式：数量_区域名
-      const areaKey = `数量_${area}`
-      if (areaKey in item.custom_fields) {
-        return parseInt(item.custom_fields[areaKey]) || 0
-      }
-      // 旧格式兼容：如果物资没有任何区域字段，且存放区域匹配
-      if (!this.hasAreaData(item) && item.custom_fields['存放区域'] === area) {
-        return parseInt(item.custom_fields['数量']) || 0
-      }
-      return 0
-    },
-    // 显示用的库存数量：区域库存/总库存
-    getAreaQuantityDisplay(item, area) {
-      const areaQty = this.getAreaQuantity(item, area)
-      const totalQty = this.getMaterialQuantity(item)
-      if (this.hasAreaData(item)) {
-        return areaQty > 0 ? `${areaQty}(总:${totalQty})` : `0(总:${totalQty})`
-      }
-      // 旧数据直接显示总数量
-      return totalQty
     },
     onMaterialChange(materialId) {
       // 当选择物资时，自动填充其当前存放区域
