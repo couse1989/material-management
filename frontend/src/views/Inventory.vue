@@ -128,15 +128,6 @@
                 <span class="cell-label">{{ field.field_name }}</span>
                 <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
               </div>
-              <!-- 显示各区域库存 -->
-              <div
-                v-for="areaQty in getAreaQuantities(item)"
-                :key="areaQty.area"
-                class="card-cell cell-small area-quantity-cell"
-              >
-                <span class="cell-label">{{ areaQty.area }}</span>
-                <span class="cell-value area-quantity">{{ areaQty.quantity }}</span>
-              </div>
               <!-- 小图片嵌入网格右下角 -->
               <div v-if="item.image" class="card-cell card-image-cell">
                 <el-image
@@ -385,16 +376,7 @@ export default {
       // 短内容占1列
       return 'cell-small'
     },
-    // 获取物资的区域库存（每条记录对应一个区域，直接读取存放区域和数量字段）
-    getAreaQuantities(item) {
-      if (!item.custom_fields) return []
-      const area = item.custom_fields['存放区域']
-      const qty = parseInt(item.custom_fields['数量']) || 0
-      if (area && qty > 0) {
-        return [{ area, quantity: qty }]
-      }
-      return []
-    },
+
     loadColumnSettings() {
       try {
         const saved = localStorage.getItem('inventoryColumnSettings')
@@ -1014,12 +996,6 @@ export default {
   .area-quantity-cell .cell-label {
     color: #1890ff;
     font-size: 8px;
-  }
-
-  .area-quantity-cell .cell-value.area-quantity {
-    color: #096dd9;
-    font-weight: 600;
-    font-size: 12px;
   }
 
   :deep(.action-column) {
