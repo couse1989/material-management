@@ -785,46 +785,99 @@ def get_login_logs():
 @app.route('/api/export/excel', methods=['GET'])
 @login_required
 def export_excel():
+    # 读取筛选参数
+    search = request.args.get('search', '').strip()
+    field_filters_str = request.args.get('field_filters', '')
+    visible_fields_str = request.args.get('visible_fields', '')
+
+    # 解析 field_filters: {"字段名": "筛选值", ...}
+    field_filters = {}
+    if field_filters_str:
+        try:
+            field_filters = json.loads(field_filters_str)
+        except Exception:
+            pass
+
+    # 解析 visible_fields: ["字段名1", "字段名2", ...]
+    visible_fields = None
+    if visible_fields_str:
+        try:
+            visible_fields = json.loads(visible_fields_str)
+            if not isinstance(visible_fields, list) or len(visible_fields) == 0:
+                visible_fields = None
+        except Exception:
+            visible_fields = None
+
     conn = get_db()
     materials = conn.execute('SELECT * FROM materials').fetchall()
     conn.close()
-    
-    # 获取字段定义
+
+    # 获取字段定义（用于确定导出顺序）
     conn = get_db()
-    fields = conn.execute('SELECT * FROM field_definitions ORDER BY sort_order, id').fetchall()
+    all_fields = conn.execute('SELECT * FROM field_definitions ORDER BY sort_order, id').fetchall()
     conn.close()
-    
-    data = []
+
+    # 过滤字段列表：如果指定了 visible_fields，只导出这些字段
+    if visible_fields:
+        field_names_to_export = [f for f in visible_fields if f != 'ID']
+    else:
+        field_names_to_export = [f['field_name'] for f in all_fields if f['field_name'] != 'image']
+
+    # 筛选物资
+    filtered_materials = []
     for m in materials:
-        m_dict = {'ID': m['id']}
-        
-        # 解析自定义字段
         custom = json.loads(m['custom_fields']) if m['custom_fields'] else {}
-        
-        # 按照字段定义顺序导出（不包含图片列）
-        for field in fields:
-            field_name = field['field_name']
+
+        # 全局搜索筛选
+        if search:
+            match = False
+            for v in custom.values():
+                if search.lower() in str(v).lower():
+                    match = True
+                    break
+            if not match:
+                continue
+
+        # 字段筛选
+        if field_filters:
+            skip = False
+            for fname, fvalue in field_filters.items():
+                if not fvalue:
+                    continue
+                field_val = str(custom.get(fname, ''))
+                if fvalue.lower() not in field_val.lower():
+                    skip = True
+                    break
+            if skip:
+                continue
+
+        filtered_materials.append((m['id'], custom))
+
+    # 构建导出数据
+    data = []
+    for mid, custom in filtered_materials:
+        m_dict = {'ID': mid}
+        for field_name in field_names_to_export:
             m_dict[field_name] = custom.get(field_name, '')
-        
         data.append(m_dict)
-    
+
     df = pd.DataFrame(data)
     filename = f'materials_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     filepath = os.path.join(BASE_DIR, 'exports', filename)
-    
+
     df.to_excel(filepath, index=False)
-    
+
     # 记录导出日志
     conn = get_db()
-    operator = session['username']
+    operator = session.get('username', '未知用户')
     conn.execute(
         '''INSERT INTO operation_logs (operation_type, material_id, material_name, quantity_change, operator, remark)
            VALUES (?, ?, ?, ?, ?, ?)''',
-        ('export_excel', None, None, None, operator, f'导出{len(materials)}条记录')
+        ('export_excel', None, None, None, operator, f'导出{len(data)}条记录（筛选后）')
     )
     conn.commit()
     conn.close()
-    
+
     return send_file(filepath, as_attachment=True)
 
 # Excel导入（自动创建不存在的字段）

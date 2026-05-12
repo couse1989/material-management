@@ -582,13 +582,24 @@ export default {
     },
     async exportExcel() {
       try {
-        const res = await axios.get('/api/export/excel', { responseType: 'blob' })
-        const url = window.URL.createObjectURL(new Blob([res.data]))
+        const params = new URLSearchParams()
+        if (this.searchKeyword) {
+          params.append('search', this.searchKeyword)
+        }
+        // 传入当前可见字段（列设置中未屏蔽的字段）
+        const visibleFields = this.displayedFields.map(f => f.field_name).filter(n => n !== 'ID')
+        if (visibleFields.length > 0) {
+          params.append('visible_fields', JSON.stringify(visibleFields))
+        }
+        const url = `/api/export/excel?${params.toString()}`
+        const res = await axios.get(url, { responseType: 'blob' })
+        const blobUrl = window.URL.createObjectURL(new Blob([res.data]))
         const link = document.createElement('a')
-        link.href = url
+        link.href = blobUrl
         link.setAttribute('download', `物资导出_${new Date().getTime()}.xlsx`)
         document.body.appendChild(link)
         link.click()
+        window.URL.revokeObjectURL(blobUrl)
       } catch (error) {
         this.$message.error('导出失败')
       }
