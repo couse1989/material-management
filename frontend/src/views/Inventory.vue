@@ -35,6 +35,13 @@
             >
               <el-button type="warning">导入Excel</el-button>
             </el-upload>
+            <el-button
+              :type="rebuildIdMode ? 'warning' : ''"
+              @click="toggleRebuildId"
+              :title="rebuildIdMode ? '当前为重建ID模式，点击恢复原始ID' : '点击启用重建ID模式（ID从1连续排序）'"
+            >
+              {{ rebuildIdMode ? '恢复原始ID' : '重建ID' }}
+            </el-button>
             <el-button @click="openColumnSettings" title="列设置">
               <el-icon><Setting /></el-icon>列设置
             </el-button>
@@ -59,7 +66,11 @@
           width="80"
           sortable="custom"
           :sort-orders="['ascending', 'descending']"
-        />
+        >
+          <template #default="scope">
+            {{ rebuildIdMode ? scope.$index + (currentPage - 1) * pageSize + 1 : scope.row.id }}
+          </template>
+        </el-table-column>
 
         <!-- 动态字段列 -->
         <el-table-column
@@ -100,10 +111,10 @@
       
       <!-- 移动端：卡片视图 -->
       <div v-else class="card-view">
-        <el-card v-for="item in displayedMaterials" :key="item.id" class="data-card" shadow="hover">
+        <el-card v-for="(item, index) in displayedMaterials" :key="item.id" class="data-card" shadow="hover">
           <!-- 卡片头部：ID + 操作按钮 -->
           <div class="card-header-mini">
-            <span class="card-id">#{{ item.id }}</span>
+            <span class="card-id">#{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}</span>
             <div class="card-actions-mini">
               <el-button size="small" text @click="editMaterial(item)">
                 <el-icon><Edit /></el-icon>
@@ -296,6 +307,7 @@ export default {
       currentPage: 1,
       pageSize: 25,
       screenWidth: window.innerWidth,
+      rebuildIdMode: false,
       form: {
         id: null,
         image: '',
@@ -591,6 +603,10 @@ export default {
         if (visibleFields.length > 0) {
           params.append('visible_fields', JSON.stringify(visibleFields))
         }
+        // 重建ID模式：导出时也使用连续序号
+        if (this.rebuildIdMode) {
+          params.append('rebuild_id', '1')
+        }
         const url = `/api/export/excel?${params.toString()}`
         const res = await axios.get(url, { responseType: 'blob' })
         const blobUrl = window.URL.createObjectURL(new Blob([res.data]))
@@ -628,6 +644,10 @@ export default {
     },
     handleResize() {
       this.screenWidth = window.innerWidth
+    },
+    toggleRebuildId() {
+      this.rebuildIdMode = !this.rebuildIdMode
+      this.$message.success(this.rebuildIdMode ? 'ID已重建，当前显示连续序号' : '已恢复原始ID显示')
     }
   }
 }

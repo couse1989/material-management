@@ -789,6 +789,7 @@ def export_excel():
     search = request.args.get('search', '').strip()
     field_filters_str = request.args.get('field_filters', '')
     visible_fields_str = request.args.get('visible_fields', '')
+    rebuild_id = request.args.get('rebuild_id', '0') == '1'
 
     # 解析 field_filters: {"字段名": "筛选值", ...}
     field_filters = {}
@@ -855,8 +856,9 @@ def export_excel():
 
     # 构建导出数据
     data = []
-    for mid, custom in filtered_materials:
-        m_dict = {'ID': mid}
+    for seq, (mid, custom) in enumerate(filtered_materials, start=1):
+        export_id = seq if rebuild_id else mid
+        m_dict = {'ID': export_id}
         for field_name in field_names_to_export:
             m_dict[field_name] = custom.get(field_name, '')
         data.append(m_dict)
