@@ -20,6 +20,7 @@
               <el-icon><Plus /></el-icon>添加物资
             </el-button>
             <el-button
+              v-if="screenWidth >= 768"
               type="danger"
               @click="batchDelete"
               :disabled="selectedIds.length === 0"
