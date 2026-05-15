@@ -110,17 +110,19 @@
       </el-table>
       </div>
       
-      <!-- 移动端：卡片视图 -->
+      <!-- 移动端：卡片视图 - 方案4 紧凑信息流 -->
       <div v-else class="card-view">
-        <div v-for="(item, index) in displayedMaterials" :key="item.id" class="m-card">
-          <!-- 顶部彩色 accent bar（根据第一个高亮字段类型变色） -->
-          <div class="m-card-accent" :class="getCardAccentClass(item)"></div>
-          <!-- 卡片头部：ID badge + 操作按钮 -->
-          <div class="m-card-head">
-            <span class="m-id-badge" :class="getCardAccentClass(item) + '-badge'">
-              #{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}
-            </span>
-            <div class="m-card-actions">
+        <div v-for="(item, index) in displayedMaterials" :key="item.id" class="m-card-v4">
+          <!-- 头部：ID头像 + 标题 + 操作按钮 -->
+          <div class="m-card-v4-head">
+            <div class="m-card-v4-avatar" :class="getCardAccentClass(item) + '-avatar'">
+              <span class="m-card-v4-id">{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}</span>
+            </div>
+            <div class="m-card-v4-title">
+              <div class="m-card-v4-name">{{ getCustomFieldValue(item, '物资名称') || '未命名' }}</div>
+              <div class="m-card-v4-meta">#{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}</div>
+            </div>
+            <div class="m-card-v4-actions">
               <button class="m-icon-btn" @click="editMaterial(item)">
                 <el-icon><Edit /></el-icon>
               </button>
@@ -129,28 +131,24 @@
               </button>
             </div>
           </div>
-          <div class="m-divider"></div>
-          <!-- 字段网格 -->
-          <div class="m-fields-grid">
+          <!-- 字段标签横向排列 -->
+          <div class="m-card-v4-tags">
             <div
-              v-for="field in displayedFields"
+              v-for="field in displayedFields.filter(f => f.field_name !== '物资名称')"
               :key="field.id"
-              class="m-field-cell"
-              :class="[
-                getFieldAccentClass(field.field_name),
-                getCellSizeClass(getCustomFieldValue(item, field.field_name))
-              ]"
+              class="m-tag"
+              :class="getFieldAccentClass(field.field_name)"
             >
-              <span class="m-field-label">{{ field.field_name }}</span>
-              <span class="m-field-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
+              <span class="m-tag-label">{{ field.field_name }}</span>
+              <span class="m-tag-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
             </div>
             <!-- 图片缩略图 -->
-            <div v-if="item.image" class="m-field-cell m-img-cell">
+            <div v-if="item.image" class="m-tag m-img-tag">
               <el-image
                 :src="getImageUrl(item.image)"
                 :preview-src-list="[getImageUrl(item.image)]"
                 fit="cover"
-                class="m-thumbnail"
+                class="m-tag-thumb"
               />
             </div>
           </div>
@@ -1036,6 +1034,140 @@ export default {
   }
 
   .m-thumbnail :deep(img) {
+    border-radius: 4px;
+    object-fit: cover;
+  }
+
+  /* ============ 方案4: 紧凑信息流卡片 ============ */
+  .m-card-v4 {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+  }
+
+  .m-card-v4-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .m-card-v4-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .m-card-v4-avatar.accent-blue   { background: #eff6ff; }
+  .m-card-v4-avatar.accent-orange { background: #fff7ed; }
+  .m-card-v4-avatar.accent-red    { background: #fff1f0; }
+
+  .m-card-v4-id {
+    font-weight: 700;
+    font-size: 16px;
+    font-family: monospace;
+  }
+
+  .accent-blue   .m-card-v4-id { color: #2563eb; }
+  .accent-orange .m-card-v4-id { color: #ea580c; }
+  .accent-red    .m-card-v4-id { color: #dc2626; }
+
+  .m-card-v4-title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .m-card-v4-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .m-card-v4-meta {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .m-card-v4-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .m-card-v4-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .m-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    flex: 1;
+    min-width: fit-content;
+    max-width: 100%;
+  }
+
+  .m-tag-label {
+    font-size: 10px;
+    color: #9ca3af;
+    white-space: nowrap;
+  }
+
+  .m-tag-value {
+    font-size: 12px;
+    color: #374151;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .m-tag.fa-blue   { background: #eff6ff; }
+  .m-tag.fa-green  { background: #f0fdf4; }
+  .m-tag.fa-orange { background: #fff7ed; }
+  .m-tag.fa-red    { background: #fff1f0; }
+  .m-tag.fa-purple { background: #faf5ff; }
+  .m-tag.fa-teal   { background: #f0fdfa; }
+  .m-tag.fa-gray   { background: #f3f4f6; }
+
+  .m-tag.fa-blue   .m-tag-value { color: #2563eb; }
+  .m-tag.fa-green  .m-tag-value { color: #16a34a; }
+  .m-tag.fa-orange .m-tag-value { color: #ea580c; }
+  .m-tag.fa-red    .m-tag-value { color: #dc2626; }
+  .m-tag.fa-purple .m-tag-value { color: #9333ea; }
+  .m-tag.fa-teal   .m-tag-value { color: #0d9488; }
+  .m-tag.fa-gray   .m-tag-value { color: #374151; }
+
+  .m-img-tag {
+    padding: 4px;
+    background: #f1f5f9;
+    min-width: 50px;
+    max-width: 60px;
+    justify-content: center;
+  }
+
+  .m-tag-thumb {
+    width: 42px;
+    height: 36px;
+    border-radius: 4px;
+  }
+
+  .m-tag-thumb :deep(img) {
     border-radius: 4px;
     object-fit: cover;
   }
