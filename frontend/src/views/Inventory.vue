@@ -112,46 +112,49 @@
       
       <!-- 移动端：卡片视图 -->
       <div v-else class="card-view">
-        <el-card v-for="(item, index) in displayedMaterials" :key="item.id" class="data-card" shadow="hover">
-          <!-- 卡片头部：ID + 操作按钮 -->
-          <div class="card-header-mini">
-            <span class="card-id">#{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}</span>
-            <div class="card-actions-mini">
-              <el-button size="small" text @click="editMaterial(item)">
+        <div v-for="(item, index) in displayedMaterials" :key="item.id" class="m-card">
+          <!-- 顶部彩色 accent bar（根据第一个高亮字段类型变色） -->
+          <div class="m-card-accent" :class="getCardAccentClass(item)"></div>
+          <!-- 卡片头部：ID badge + 操作按钮 -->
+          <div class="m-card-head">
+            <span class="m-id-badge" :class="getCardAccentClass(item) + '-badge'">
+              #{{ rebuildIdMode ? (currentPage - 1) * pageSize + index + 1 : item.id }}
+            </span>
+            <div class="m-card-actions">
+              <button class="m-icon-btn" @click="editMaterial(item)">
                 <el-icon><Edit /></el-icon>
-              </el-button>
-              <el-button size="small" text type="danger" @click="deleteMaterial(item.id)">
+              </button>
+              <button class="m-icon-btn m-icon-btn--danger" @click="deleteMaterial(item.id)">
                 <el-icon><Delete /></el-icon>
-              </el-button>
+              </button>
             </div>
           </div>
-          <!-- 字段信息：智能布局，内容多的占满行，内容少的并排，图片右下角 -->
-          <div class="card-body">
-            <div class="card-grid-smart" :class="{ 'has-image': item.image }">
-              <div
-                v-for="field in displayedFields"
-                :key="field.id"
-                class="card-cell"
-                :class="[
-                  getFieldClass(field.field_name),
-                  getCellSizeClass(getCustomFieldValue(item, field.field_name))
-                ]"
-              >
-                <span class="cell-label">{{ field.field_name }}</span>
-                <span class="cell-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
-              </div>
-              <!-- 小图片嵌入网格右下角 -->
-              <div v-if="item.image" class="card-cell card-image-cell">
-                <el-image
-                  :src="getImageUrl(item.image)"
-                  :preview-src-list="[getImageUrl(item.image)]"
-                  fit="cover"
-                  class="embedded-image"
-                />
-              </div>
+          <div class="m-divider"></div>
+          <!-- 字段网格 -->
+          <div class="m-fields-grid">
+            <div
+              v-for="field in displayedFields"
+              :key="field.id"
+              class="m-field-cell"
+              :class="[
+                getFieldAccentClass(field.field_name),
+                getCellSizeClass(getCustomFieldValue(item, field.field_name))
+              ]"
+            >
+              <span class="m-field-label">{{ field.field_name }}</span>
+              <span class="m-field-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
+            </div>
+            <!-- 图片缩略图 -->
+            <div v-if="item.image" class="m-field-cell m-img-cell">
+              <el-image
+                :src="getImageUrl(item.image)"
+                :preview-src-list="[getImageUrl(item.image)]"
+                fit="cover"
+                class="m-thumbnail"
+              />
             </div>
           </div>
-        </el-card>
+        </div>
       </div>
       
       <!-- 分页组件 -->
@@ -364,7 +367,7 @@ export default {
     window.removeEventListener('resize', this.handleResize)
   },
   methods: {
-    // 获取字段样式类名
+    // 获取字段样式类名（桌面端用）
     getFieldClass(fieldName) {
       const name = fieldName.toLowerCase()
       if (name.includes('名称') || name.includes('name')) return 'field-highlight-primary'
@@ -374,6 +377,28 @@ export default {
       if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'field-highlight-date'
       if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'field-highlight-category'
       return ''
+    },
+    // 获取移动端字段 accent 类名
+    getFieldAccentClass(fieldName) {
+      const name = fieldName.toLowerCase()
+      if (name.includes('名称') || name.includes('name')) return 'fa-blue'
+      if (name.includes('数量') || name.includes('quantity') || name.includes('库存')) return 'fa-green'
+      if (name.includes('价格') || name.includes('金额') || name.includes('price') || name.includes('cost')) return 'fa-orange'
+      if (name.includes('状态') || name.includes('status')) return 'fa-red'
+      if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'fa-purple'
+      if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'fa-teal'
+      return ''
+    },
+    // 获取卡片顶部 accent bar 类名（取物资名称字段颜色，无则默认蓝）
+    getCardAccentClass(item) {
+      if (!item.custom_fields) return 'accent-blue'
+      const fields = item.custom_fields
+      if (fields['状态']) {
+        const s = String(fields['状态'])
+        if (s.includes('损') || s.includes('废') || s.includes('缺')) return 'accent-red'
+        if (s.includes('借') || s.includes('出')) return 'accent-orange'
+      }
+      return 'accent-blue'
     },
     // 根据内容长度判断单元格大小
     getCellSizeClass(value) {
@@ -840,7 +865,7 @@ export default {
     margin-right: 2px;
   }
 
-  /* 卡片视图整体优化 - 更紧凑 */
+  /* ============ 现代化卡片视图 ============ */
   .card-view {
     display: flex;
     flex-direction: column;
@@ -848,115 +873,135 @@ export default {
     padding: 0;
   }
 
-  .data-card {
-    margin-bottom: 0;
-    border-radius: 8px;
+  /* 卡片容器 */
+  .m-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    position: relative;
   }
 
-  .data-card :deep(.el-card__body) {
-    padding: 8px 12px;
+  /* 顶部彩色 accent 条 */
+  .m-card-accent {
+    height: 3px;
+    width: 100%;
   }
+  .accent-blue  { background: #3b82f6; }
+  .accent-orange{ background: #f97316; }
+  .accent-red   { background: #ef4444; }
 
-  /* 卡片头部 - ID和操作按钮 */
-  .card-header-mini {
+  /* 卡片头部 */
+  .m-card-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 0 8px 0;
-    border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 8px;
+    padding: 9px 12px 0;
   }
 
-  .card-id {
+  /* ID 胶囊 badge */
+  .m-id-badge {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
-    color: #909399;
     font-weight: 500;
     font-family: monospace;
+    padding: 2px 9px;
+    border-radius: 20px;
   }
+  .accent-blue-badge  { background: #eff6ff; color: #2563eb; }
+  .accent-orange-badge{ background: #fff7ed; color: #c2410c; }
+  .accent-red-badge   { background: #fff1f0; color: #dc2626; }
 
-  .card-actions-mini {
+  /* 圆形操作按钮 */
+  .m-card-actions {
     display: flex;
-    gap: 4px;
+    gap: 6px;
   }
 
-  .card-actions-mini .el-button {
-    padding: 4px;
-    margin: 0;
-  }
-
-  /* 嵌入网格的小图片 - 更小 */
-  .card-image-cell {
-    grid-row: span 1;
-    padding: 2px !important;
-    background: #f5f5f5 !important;
+  .m-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    background: #f8f9fa;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 36px;
-    max-height: 40px;
-  }
-
-  .embedded-image {
-    width: 100%;
-    height: 100%;
-    max-height: 36px;
-    border-radius: 3px;
-    object-fit: cover;
-  }
-
-  .embedded-image :deep(img) {
-    border-radius: 3px;
-  }
-
-  /* 卡片内容区：紧凑网格布局 */
-  .card-body {
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 13px;
     padding: 0;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  /* 智能网格布局 */
-  .card-grid-smart {
+  .m-icon-btn--danger {
+    background: #fff1f0;
+    border-color: #fca5a5;
+    color: #ef4444;
+  }
+
+  .m-icon-btn:active {
+    opacity: 0.7;
+  }
+
+  /* 分割线 */
+  .m-divider {
+    height: 0.5px;
+    background: rgba(0, 0, 0, 0.06);
+    margin: 8px 12px 0;
+  }
+
+  /* 字段网格 */
+  .m-fields-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
+    gap: 4px;
+    padding: 8px 12px 12px;
   }
 
-  /* 单元格样式 - 超紧凑 */
-  .card-cell {
-    display: flex;
-    flex-direction: column;
-    padding: 3px 5px;
-    border-radius: 3px;
+  /* 字段单元格基础样式 */
+  .m-field-cell {
+    border-radius: 6px;
+    padding: 5px 7px;
     background: #fafafa;
-    min-height: 0;
+    border-left: 2px solid transparent;
     overflow: hidden;
   }
 
-  /* 小内容单元格 - 占1列 */
-  .card-cell.cell-small {
-    grid-column: span 1;
-  }
+  /* 宽度档位（复用 getCellSizeClass 逻辑） */
+  .m-field-cell.cell-small { grid-column: span 1; }
+  .m-field-cell.cell-half  { grid-column: span 2; }
+  .m-field-cell.cell-full  { grid-column: 1 / -1; }
 
-  /* 中等内容单元格 - 占2列 */
-  .card-cell.cell-half {
-    grid-column: span 2;
-  }
+  /* 字段 accent 颜色 */
+  .m-field-cell.fa-blue   { background: #eff6ff; border-left-color: #3b82f6; }
+  .m-field-cell.fa-blue   .m-field-value { color: #2563eb; font-weight: 500; }
+  .m-field-cell.fa-green  { background: #f0fdf4; border-left-color: #22c55e; }
+  .m-field-cell.fa-green  .m-field-value { color: #16a34a; font-weight: 500; }
+  .m-field-cell.fa-orange { background: #fff7ed; border-left-color: #f97316; }
+  .m-field-cell.fa-orange .m-field-value { color: #ea580c; font-weight: 500; }
+  .m-field-cell.fa-red    { background: #fff1f0; border-left-color: #ef4444; }
+  .m-field-cell.fa-red    .m-field-value { color: #dc2626; font-weight: 500; }
+  .m-field-cell.fa-purple { background: #faf5ff; border-left-color: #a855f7; }
+  .m-field-cell.fa-purple .m-field-value { color: #9333ea; }
+  .m-field-cell.fa-teal   { background: #f0fdfa; border-left-color: #14b8a6; }
+  .m-field-cell.fa-teal   .m-field-value { color: #0d9488; }
 
-  /* 大内容单元格 - 占满整行 */
-  .card-cell.cell-full {
-    grid-column: 1 / -1;
-  }
-
-  .cell-label {
+  /* 字段标签和值 */
+  .m-field-label {
+    display: block;
     font-size: 9px;
-    color: #909399;
-    margin-bottom: 1px;
-    line-height: 1.2;
+    color: #9ca3af;
+    margin-bottom: 2px;
+    line-height: 1;
   }
 
-  .cell-value {
-    font-size: 11px;
-    color: #303133;
+  .m-field-value {
+    display: block;
+    font-size: 12px;
+    color: #111827;
     line-height: 1.3;
     word-break: break-all;
     overflow: hidden;
@@ -966,69 +1011,36 @@ export default {
     -webkit-box-orient: vertical;
   }
 
-  /* 字段高亮样式 */
-  .field-highlight-primary {
-    background: #ecf5ff;
+  /* 图片缩略图格子 */
+  .m-img-cell {
+    grid-column: span 1;
+    background: #f1f5f9 !important;
+    border-left-color: transparent !important;
+    padding: 3px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
   }
 
-  .field-highlight-primary .cell-value {
-    color: #409eff;
-    font-weight: 600;
+  .m-thumbnail {
+    width: 100%;
+    height: 40px;
+    border-radius: 4px;
   }
 
-  .field-highlight-number {
-    background: #f0f9ff;
+  .m-thumbnail :deep(img) {
+    border-radius: 4px;
+    object-fit: cover;
   }
 
-  .field-highlight-number .cell-value {
-    color: #1890ff;
-    font-weight: 600;
-  }
-
-  .field-highlight-money {
-    background: #fff7e6;
-  }
-
-  .field-highlight-money .cell-value {
-    color: #fa8c16;
-    font-weight: 600;
-  }
-
-  .field-highlight-status {
-    background: #f6ffed;
-  }
-
-  .field-highlight-status .cell-value {
-    color: #52c41a;
-    font-weight: 600;
-  }
-
-  .field-highlight-date {
-    background: #f9f0ff;
-  }
-
-  .field-highlight-date .cell-value {
-    color: #722ed1;
-  }
-
-  .field-highlight-category {
-    background: #fff2f0;
-  }
-
-  .field-highlight-category .cell-value {
-    color: #ff4d4f;
-  }
-
-  /* 区域库存单元格样式 */
-  .area-quantity-cell {
-    background: #e6f7ff !important;
-    border: 1px solid #91d5ff;
-  }
-
-  .area-quantity-cell .cell-label {
-    color: #1890ff;
-    font-size: 8px;
-  }
+  /* 桌面端字段高亮（不在移动端使用，保留供兼容） */
+  .field-highlight-primary,
+  .field-highlight-number,
+  .field-highlight-money,
+  .field-highlight-status,
+  .field-highlight-date,
+  .field-highlight-category { /* 移动端不使用，仅保留不报错 */ }
 
   :deep(.action-column) {
     width: 120px !important;
