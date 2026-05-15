@@ -387,7 +387,11 @@ export default {
       if (name.includes('状态') || name.includes('status')) return 'fa-red'
       if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'fa-purple'
       if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'fa-teal'
-      return ''
+      if (name.includes('规格') || name.includes('型号')) return 'fa-orange'
+      if (name.includes('单位') || name.includes('计量')) return 'fa-teal'
+      if (name.includes('区域') || name.includes('位置') || name.includes('仓库')) return 'fa-purple'
+      if (name.includes('备注') || name.includes('说明') || name.includes('描述')) return 'fa-gray'
+      return 'fa-gray'
     },
     // 获取卡片顶部 accent bar 类名（取物资名称字段颜色，无则默认蓝）
     getCardAccentClass(item) {
@@ -988,6 +992,8 @@ export default {
   .m-field-cell.fa-purple .m-field-value { color: #9333ea; }
   .m-field-cell.fa-teal   { background: #f0fdfa; border-left-color: #14b8a6; }
   .m-field-cell.fa-teal   .m-field-value { color: #0d9488; }
+  .m-field-cell.fa-gray   { background: #f3f4f6; border-left-color: #9ca3af; }
+  .m-field-cell.fa-gray   .m-field-value { color: #374151; }
 
   /* 字段标签和值 */
   .m-field-label {
