@@ -138,6 +138,12 @@ def init_db():
         except sqlite3.OperationalError:
             c.execute('ALTER TABLE field_definitions ADD COLUMN sort_order INTEGER DEFAULT 0')
         
+        # 检查并添加 color 列（字段颜色配置）
+        try:
+            c.execute('SELECT color FROM field_definitions LIMIT 1')
+        except sqlite3.OperationalError:
+            c.execute('ALTER TABLE field_definitions ADD COLUMN color TEXT DEFAULT NULL')
+        
         # 操作日志表
         c.execute('''CREATE TABLE IF NOT EXISTS operation_logs
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -426,6 +432,7 @@ def update_field(field_id):
     field_type = data.get('field_type')
     is_required = 1 if data.get('is_required', False) else 0
     field_options = data.get('field_options', '')
+    color = data.get('color', None)  # 字段颜色配置
     
     conn = get_db()
     try:
@@ -436,12 +443,12 @@ def update_field(field_id):
         
         old_field_name = old_field['field_name']
         
-        # 更新字段定义
+        # 更新字段定义（包含颜色）
         conn.execute('''
             UPDATE field_definitions 
-            SET field_name = ?, field_type = ?, is_required = ?, field_options = ?
+            SET field_name = ?, field_type = ?, is_required = ?, field_options = ?, color = ?
             WHERE id = ?
-        ''', (new_field_name, field_type, is_required, field_options, field_id))
+        ''', (new_field_name, field_type, is_required, field_options, color, field_id))
         
         # 如果字段名称改变了，更新所有物资的custom_fields
         if old_field_name != new_field_name:

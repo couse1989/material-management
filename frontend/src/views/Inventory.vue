@@ -137,7 +137,7 @@
               v-for="field in displayedFields.filter(f => f.field_name !== '物资名称')"
               :key="field.id"
               class="m-tag"
-              :class="getFieldAccentClass(field.field_name)"
+              :class="getFieldStyle(field)"
             >
               <span class="m-tag-label">{{ field.field_name }}</span>
               <span class="m-tag-value">{{ getCustomFieldValue(item, field.field_name) }}</span>
@@ -173,12 +173,12 @@
     <el-dialog
       v-model="showColumnSettings"
       title="列设置"
-      width="450px"
+      width="500px"
       :close-on-click-modal="false"
       @close="cancelColumnSettings"
     >
       <div class="column-settings-tip">
-        拖拽排序 · 勾选显示
+        拖拽排序 · 勾选显示 · 选择颜色
       </div>
       <draggable
         v-model="tempFields"
@@ -191,6 +191,23 @@
             <el-icon class="drag-handle"><Rank /></el-icon>
             <el-checkbox v-model="tempVisibility[element.id]" style="margin-left: 8px;" />
             <span class="column-name">{{ element.field_name }}</span>
+            <el-select
+              v-model="tempColors[element.id]"
+              placeholder="颜色"
+              style="width: 80px; margin-left: 8px;"
+              size="small"
+            >
+              <el-option
+                v-for="opt in colorOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              >
+                <span :style="{ color: opt.value ? getColorHex(opt.value) : '#999' }">
+                  {{ opt.label }}
+                </span>
+              </el-option>
+            </el-select>
           </div>
         </template>
       </draggable>
@@ -301,7 +318,20 @@ export default {
       // 列设置相关
       tempFields: [],
       tempVisibility: {},
+      tempColors: {},
       fieldVisibility: {},
+      fieldColors: {},
+      // 颜色选项
+      colorOptions: [
+        { label: '蓝色', value: 'blue' },
+        { label: '绿色', value: 'green' },
+        { label: '橙色', value: 'orange' },
+        { label: '红色', value: 'red' },
+        { label: '紫色', value: 'purple' },
+        { label: '青色', value: 'teal' },
+        { label: '灰色', value: 'gray' },
+        { label: '自动', value: '' },
+      ],
       // 排序相关
       sortField: '',
       sortOrder: '',
@@ -379,17 +409,61 @@ export default {
     // 获取移动端字段 accent 类名
     getFieldAccentClass(fieldName) {
       const name = fieldName.toLowerCase()
-      if (name.includes('名称') || name.includes('name')) return 'fa-blue'
-      if (name.includes('数量') || name.includes('quantity') || name.includes('库存')) return 'fa-green'
-      if (name.includes('价格') || name.includes('金额') || name.includes('price') || name.includes('cost')) return 'fa-orange'
-      if (name.includes('状态') || name.includes('status')) return 'fa-red'
-      if (name.includes('日期') || name.includes('时间') || name.includes('date')) return 'fa-purple'
-      if (name.includes('类别') || name.includes('类型') || name.includes('分类') || name.includes('category')) return 'fa-teal'
-      if (name.includes('规格') || name.includes('型号')) return 'fa-orange'
-      if (name.includes('单位') || name.includes('计量')) return 'fa-teal'
-      if (name.includes('区域') || name.includes('位置') || name.includes('仓库')) return 'fa-purple'
-      if (name.includes('备注') || name.includes('说明') || name.includes('描述')) return 'fa-gray'
+      // 数量/库存类 → 绿色
+      if (name.includes('数量') || name.includes('quantity') || name.includes('库存') ||
+          name.includes('num') || name.includes('cnt') || name.includes('amount')) return 'fa-green'
+      // 价格/金额/成本类 → 橙色
+      if (name.includes('价格') || name.includes('金额') || name.includes('price') ||
+          name.includes('cost') || name.includes('fee') || name.includes('money') ||
+          name.includes('金额') || name.includes('总计') || name.includes('sum')) return 'fa-orange'
+      // 状态类 → 红色
+      if (name.includes('状态') || name.includes('status') || name.includes('state')) return 'fa-red'
+      // 日期/时间类 → 紫色
+      if (name.includes('日期') || name.includes('时间') || name.includes('date') ||
+          name.includes('time') || name.includes('created') || name.includes('updated')) return 'fa-purple'
+      // 类别/类型/分类/品牌/规格/型号 → 橙色
+      if (name.includes('类别') || name.includes('类型') || name.includes('分类') ||
+          name.includes('category') || name.includes('type') || name.includes('brand') ||
+          name.includes('品牌') || name.includes('规格') || name.includes('型号') ||
+          name.includes('model') || name.includes('spec')) return 'fa-orange'
+      // 单位/计量类 → 青色
+      if (name.includes('单位') || name.includes('计量') || name.includes('unit') ||
+          name.includes('规格') && name.includes('单位')) return 'fa-teal'
+      // 区域/位置/仓库/存放类 → 紫色
+      if (name.includes('区域') || name.includes('位置') || name.includes('仓库') ||
+          name.includes('location') || name.includes('area') || name.includes('shelf') ||
+          name.includes('zone') || name.includes('shelf') || name.includes('存放')) return 'fa-purple'
+      // 名称/标题/描述类 → 蓝色
+      if (name.includes('名称') || name.includes('name') || name.includes('title') ||
+          name.includes('标题') || name.includes('品名') || name.includes('desc')) return 'fa-blue'
+      // 备注/说明/描述/备注类 → 灰色
+      if (name.includes('备注') || name.includes('说明') || name.includes('描述') ||
+          name.includes('remark') || name.includes('note') || name.includes('comment') ||
+          name.includes('info')) return 'fa-gray'
+      // 默认灰色
       return 'fa-gray'
+    },
+    // 获取字段样式：优先使用字段自定义颜色，否则使用关键词匹配
+    getFieldStyle(field) {
+      // 如果字段有自定义颜色，使用自定义颜色
+      if (field.color && field.color.trim()) {
+        return 'fa-' + field.color.trim()
+      }
+      // 否则使用关键词智能匹配
+      return this.getFieldAccentClass(field.field_name)
+    },
+    // 获取颜色对应的十六进制值
+    getColorHex(colorName) {
+      const colors = {
+        blue: '#2563eb',
+        green: '#16a34a',
+        orange: '#ea580c',
+        red: '#dc2626',
+        purple: '#9333ea',
+        teal: '#0d9488',
+        gray: '#374151'
+      }
+      return colors[colorName] || '#999'
     },
     // 获取卡片顶部 accent bar 类名（取物资名称字段颜色，无则默认蓝）
     getCardAccentClass(item) {
@@ -423,12 +497,20 @@ export default {
         if (saved) {
           const settings = JSON.parse(saved)
           this.fieldVisibility = settings.visibility || {}
+          this.fieldColors = settings.colors || {}
         }
       } catch (e) {}
+      // 合并后端字段的颜色设置
+      this.customFields.forEach(f => {
+        if (f.color) {
+          this.fieldColors[f.id] = f.color
+        }
+      })
     },
     saveColumnSettings() {
       const settings = {
         visibility: this.fieldVisibility,
+        colors: this.fieldColors,
         order: this.customFields.map(f => f.id)
       }
       localStorage.setItem('inventoryColumnSettings', JSON.stringify(settings))
@@ -436,20 +518,45 @@ export default {
     openColumnSettings() {
       this.tempFields = this.customFields.map(f => ({ ...f }))
       this.tempVisibility = { ...this.fieldVisibility }
+      this.tempColors = { ...this.fieldColors }
       // 新字段默认显示
       this.tempFields.forEach(f => {
         if (this.tempVisibility[f.id] === undefined) {
           this.tempVisibility[f.id] = true
         }
+        // 如果字段有后端颜色但本地没有，使用后端颜色
+        if (!this.tempColors[f.id] && f.color) {
+          this.tempColors[f.id] = f.color
+        }
       })
       this.showColumnSettings = true
     },
     applyColumnSettings() {
-      this.customFields = this.tempFields.map(f => ({ ...f }))
-      this.fieldVisibility = { ...this.tempVisibility }
+      // 保存颜色设置到本地
+      this.fieldColors = { ...this.tempColors }
       this.saveColumnSettings()
+      
+      // 更新自定义字段的颜色属性
+      this.customFields.forEach(f => {
+        f.color = this.fieldColors[f.id] || null
+      })
+      
+      // 同步颜色到后端
+      this.syncFieldColorsToBackend()
+      
       this.showColumnSettings = false
       this.$message.success('列设置已保存')
+    },
+    async syncFieldColorsToBackend() {
+      // 将本地颜色设置同步到后端字段定义
+      try {
+        for (const fieldId in this.fieldColors) {
+          const color = this.fieldColors[fieldId] || null
+          await axios.put(`/api/fields/${fieldId}`, { color })
+        }
+      } catch (error) {
+        console.error('同步字段颜色失败', error)
+      }
     },
     cancelColumnSettings() {
       this.showColumnSettings = false
